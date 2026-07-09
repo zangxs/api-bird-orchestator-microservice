@@ -16,3 +16,7 @@ management:
   endpoint:
     health:
       show-details: always
+
+aws:
+  s3:
+    bucket: ${BUCKET_NAME:bird_bucket}

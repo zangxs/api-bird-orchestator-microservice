@@ -1,7 +1,7 @@
 package com.brayanpv.app.infrastructure.web.implementations;
 
-import com.brayanpv.app.application.dto.request.BirdRequest;
-import com.brayanpv.app.application.dto.response.BirdResponse;
+import com.brayanpv.app.application.dto.request.ImageUploadRequest;
+import com.brayanpv.app.application.dto.response.ImageUploadResponse;
 import com.brayanpv.app.application.dto.response.GenericResponse;
 import com.brayanpv.app.application.service.contracts.IBirdService;
 import com.brayanpv.app.infrastructure.web.contracts.IBirdController;
@@ -27,20 +27,20 @@ public class BirdController implements IBirdController {
 
     @PostMapping(path = "/detect", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Override
-    public Mono<ResponseEntity<GenericResponse<BirdResponse>>> detectBird(@RequestPart("image") FilePart image,
-                                                                          @RequestPart("userId") String userId) {
+    public Mono<ResponseEntity<GenericResponse<ImageUploadResponse>>> detectBird(@RequestPart("image") FilePart image,
+                                                                                 @RequestPart("userId") String userId) {
         log.info("Detecting Bird");
 
-        BirdRequest birdRequest = new BirdRequest(image, userId);
+        ImageUploadRequest imageUploadRequest = new ImageUploadRequest(image, userId);
 
-        return birdService.detectBird(birdRequest).flatMap(response -> {
+        return birdService.processImage(imageUploadRequest).flatMap(response -> {
 
-            GenericResponse<BirdResponse> generic = GenericResponse.<BirdResponse>builder()
+            GenericResponse<ImageUploadResponse> generic = GenericResponse.<ImageUploadResponse>builder()
                     .dateTime(LocalDateTime.now(ZoneOffset.UTC))
                     .code(HttpStatus.OK.value())
                     .data(response)
                     .build();
-            ResponseEntity<GenericResponse<BirdResponse>> genericResponse = ResponseEntity.ok(generic);
+            ResponseEntity<GenericResponse<ImageUploadResponse>> genericResponse = ResponseEntity.ok(generic);
             return Mono.just(genericResponse);
         });
     }
