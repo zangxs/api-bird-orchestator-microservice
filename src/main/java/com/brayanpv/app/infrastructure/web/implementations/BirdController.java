@@ -8,10 +8,10 @@ import com.brayanpv.app.infrastructure.web.contracts.IBirdController;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.http.codec.multipart.FilePart;
+import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
 
 import java.time.LocalDateTime;
@@ -25,9 +25,14 @@ public class BirdController implements IBirdController {
 
     private final IBirdService birdService;
 
-    @PostMapping("/detect")
+    @PostMapping(path = "/detect", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Override
-    public Mono<ResponseEntity<GenericResponse<BirdResponse>>> detectBird(BirdRequest birdRequest) {
+    public Mono<ResponseEntity<GenericResponse<BirdResponse>>> detectBird(@RequestPart("image") FilePart image,
+                                                                          @RequestPart("userId") String userId) {
+        log.info("Detecting Bird");
+
+        BirdRequest birdRequest = new BirdRequest(image, userId);
+
         return birdService.detectBird(birdRequest).flatMap(response -> {
 
             GenericResponse<BirdResponse> generic = GenericResponse.<BirdResponse>builder()

@@ -1,13 +1,6 @@
 package com.brayanpv.app.application.dto.request;
 
-import lombok.Data;
+import org.springframework.http.codec.multipart.FilePart;
 
-import java.io.File;
-import java.io.Serializable;
-
-@Data
-public class BirdRequest implements Serializable {
-
-    private File image;
-    private String userId;
+public record BirdRequest (FilePart image, String userId) {
 }
