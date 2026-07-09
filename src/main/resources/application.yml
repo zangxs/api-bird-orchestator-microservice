@@ -1,7 +1,10 @@
 spring:
   application:
     name: api-bird-orchestator-microservice
-
+  r2dbc:
+    url: r2dbc:postgresql://${DB_LANDSCAPE_HOST:localhost}:${DB_LANDSCAPE_PORT:5433}/${DB_LANDSCAPE_NAME:bird_dex}
+    username: ${DB_LANDSCAPE_USER:bird_user}
+    password: ${DB_LANDSCAPE_PASSWORD:bird_pass}
 server:
   port: 8080
 
