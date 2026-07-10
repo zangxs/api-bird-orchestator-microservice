@@ -1,5 +1,6 @@
 package com.brayanpv.app.infrastructure.mapper;
 
+import com.brayanpv.app.domain.model.BirdDetectionResult;
 import com.brayanpv.app.domain.model.ImageEvent;
 import com.brayanpv.app.infrastructure.persistence.entity.ImageEventEntity;
 import org.springframework.stereotype.Component;
@@ -24,6 +25,8 @@ public class ImageEventMapper {
                 .id(imageEventEntity.getId())
                 .status(imageEventEntity.getStatus())
                 .s3Key(imageEventEntity.getS3Key())
+                .birdConfidence(imageEventEntity.getBirdConfidence())
                 .build();
     }
+
 }
