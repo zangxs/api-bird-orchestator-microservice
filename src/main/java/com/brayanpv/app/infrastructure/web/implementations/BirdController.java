@@ -26,12 +26,13 @@ public class BirdController implements IBirdController {
 
     private final IBirdService birdService;
 
-    @PostMapping(path = "/detect", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+@PostMapping(path = "/detect", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Override
     public Mono<ResponseEntity<GenericResponse<ImageUploadResponse>>> detectBird(@RequestPart("image") FilePart image,
-                                                                                 @RequestPart("userId") UUID userId) {
+                                                                                   @RequestPart("userId") String userIdStr) {
         log.info("Detecting Bird");
 
+        UUID userId = UUID.fromString(userIdStr);
         ImageUploadRequest imageUploadRequest = new ImageUploadRequest(image, userId);
 
         return birdService.processImage(imageUploadRequest).flatMap(response -> {

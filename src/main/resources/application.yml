@@ -2,9 +2,15 @@ spring:
   application:
     name: api-bird-orchestator-microservice
   r2dbc:
-    url: r2dbc:postgresql://${DB_LANDSCAPE_HOST:localhost}:${DB_LANDSCAPE_PORT:5433}/${DB_LANDSCAPE_NAME:bird_dex}
-    username: ${DB_LANDSCAPE_USER:bird_user}
-    password: ${DB_LANDSCAPE_PASSWORD:bird_pass}
+    url: r2dbc:postgresql://${DB_BIRD_DEX_HOST:localhost}:${DB_BIRD_DEX_PORT:5432}/${DB_BIRD_DEX_NAME:bird_dex}
+    username: ${DB_BIRD_DEX_USER:bird_user}
+    password: ${DB_BIRD_DEX_PASSWORD:bird_password}
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USER:user}
+    password: ${RABBITMQ_PASSWORD:password}
+    virtual-host: /
 server:
   port: 8080
 
@@ -20,6 +26,10 @@ management:
 aws:
   s3:
     bucket: ${AWS_S3_BUCKET_NAME:}
-    url: ${AWS_S3_URL:}
     access-key: ${AWS_S3_ACCESS_KEY:}
     secret-key: ${AWS_S3_SECRET_KEY:}
+
+rabbitmq:
+  exchange: bird_detection.exchange
+  queue: bird_detection.pending.queue
+  routing-key: bird_detection.pending

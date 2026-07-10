@@ -7,10 +7,9 @@ import org.springframework.http.codec.multipart.FilePart;
 import org.springframework.web.bind.annotation.RequestPart;
 import reactor.core.publisher.Mono;
 
-import java.util.UUID;
 
 public interface IBirdController {
 
     Mono<ResponseEntity<GenericResponse<ImageUploadResponse>>> detectBird(@RequestPart("image") FilePart image,
-                                                                          @RequestPart("userId") UUID userId);
+                                                                          @RequestPart("userId") String userIdStr);
 }

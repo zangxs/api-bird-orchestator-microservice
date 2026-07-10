@@ -66,7 +66,7 @@ public class BirdService implements IBirdService {
 
     }
 
-    private String buildS3Key(UUID userId) {
+private String buildS3Key(UUID userId) {
         return "images/%s/%s.jpg".formatted(userId, UUID.randomUUID());
     }
 

@@ -17,11 +17,12 @@ public class S3ImageStorageAdapter implements IImageStoragePort {
 
     private final S3AsyncClient s3AsyncClient;
     @Value("${aws.s3.bucket}")
-    private final String bucketName;
+    private String bucketName;
 
 
     @Override
     public Mono<String> upload(byte[] imageBytes, String key) {
+
         PutObjectRequest request = PutObjectRequest.builder()
                 .bucket(bucketName)
                 .key(key)
