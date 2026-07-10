@@ -2,6 +2,7 @@ package com.brayanpv.app.infrastructure.storage;
 
 import com.brayanpv.app.domain.storage.IImageStoragePort;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Mono;
 import software.amazon.awssdk.core.async.AsyncRequestBody;
@@ -13,6 +14,7 @@ import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 @Component
 @RequiredArgsConstructor
+@Log4j2
 public class S3ImageStorageAdapter implements IImageStoragePort {
 
     private final S3AsyncClient s3AsyncClient;
@@ -22,7 +24,7 @@ public class S3ImageStorageAdapter implements IImageStoragePort {
 
     @Override
     public Mono<String> upload(byte[] imageBytes, String key) {
-
+        log.info("Uploading image to S3 bucket {}", bucketName);
         PutObjectRequest request = PutObjectRequest.builder()
                 .bucket(bucketName)
                 .key(key)

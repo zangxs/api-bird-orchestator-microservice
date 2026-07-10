@@ -5,4 +5,5 @@ import reactor.core.publisher.Mono;
 
 public interface IImageEventRepository {
     Mono<ImageEvent> save(ImageEvent imageEvent);
+    Mono<ImageEvent> updateDetection(ImageEvent imageEvent);
 }

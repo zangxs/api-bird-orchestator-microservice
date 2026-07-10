@@ -12,4 +12,5 @@ public class BirdObserved implements Serializable {
     private UUID userId;
     private String s3Key;
     private String status;
+    private UUID imageEventId;
 }

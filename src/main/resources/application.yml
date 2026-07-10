@@ -33,3 +33,5 @@ rabbitmq:
   exchange: bird_detection.exchange
   queue: bird_detection.pending.queue
   routing-key: bird_detection.pending
+  result-queue: bird_detection.resultado.queue
+  result-routing-key: bird_detection.result

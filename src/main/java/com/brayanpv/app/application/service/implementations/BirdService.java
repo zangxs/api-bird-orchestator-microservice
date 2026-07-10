@@ -95,6 +95,7 @@ private String buildS3Key(UUID userId) {
                 .status(imageEvent.getStatus().name())
                 .s3Key(imageEvent.getS3Key())
                 .userId(imageEvent.getUserId())
+                .imageEventId(imageEvent.getId())
                 .build();
     }
 }

@@ -40,7 +40,7 @@ class BirdControllerTest {
 
         // When
         Mono<ResponseEntity<GenericResponse<ImageUploadResponse>>> result = 
-                birdController.detectBird(null, UUID.randomUUID());
+                birdController.detectBird(null, String.valueOf(UUID.randomUUID()));
 
         // Then - verify controller wraps service response correctly
         ResponseEntity<GenericResponse<ImageUploadResponse>> response = result.block();
@@ -69,7 +69,7 @@ class BirdControllerTest {
 
         // When/Then - error propagates to GlobalExceptionHandler
         Mono<ResponseEntity<GenericResponse<ImageUploadResponse>>> result = 
-                birdController.detectBird(null, UUID.randomUUID());
+                birdController.detectBird(null, String.valueOf(UUID.randomUUID()));
         
         try {
             result.block();
