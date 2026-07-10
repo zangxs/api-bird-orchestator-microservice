@@ -16,6 +16,7 @@ import reactor.core.publisher.Mono;
 
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/bird")
@@ -28,7 +29,7 @@ public class BirdController implements IBirdController {
     @PostMapping(path = "/detect", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Override
     public Mono<ResponseEntity<GenericResponse<ImageUploadResponse>>> detectBird(@RequestPart("image") FilePart image,
-                                                                                 @RequestPart("userId") String userId) {
+                                                                                 @RequestPart("userId") UUID userId) {
         log.info("Detecting Bird");
 
         ImageUploadRequest imageUploadRequest = new ImageUploadRequest(image, userId);

@@ -12,7 +12,7 @@ import java.util.UUID;
 public class ImageEvent implements Serializable {
 
     private UUID id;
-    private String userId;
+    private UUID userId;
     private String s3Key;
     private ImageStatus status;
 }
