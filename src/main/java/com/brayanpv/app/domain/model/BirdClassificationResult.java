@@ -10,7 +10,7 @@ import java.util.UUID;
 public class BirdClassificationResult implements Serializable {
 
     private UUID imageEventId;
-    private String specie;
+    private String scientificName;
     private BigDecimal specieConfidence;
     private String failureReason;
 }

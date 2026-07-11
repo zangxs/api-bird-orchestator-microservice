@@ -43,3 +43,5 @@ rabbitmq:
   classification-queue: bird_classification.queue
   result-classification-routing-key: bird_classification.result
   classification-result-queue: bird_classification.result.queue
+  manual-classification-routing-key: bird_classification.manual.pending
+  manual-classification-queue: bird_classification.manual.queue

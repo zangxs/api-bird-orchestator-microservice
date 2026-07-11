@@ -53,20 +53,20 @@ public class ImageEventRepository implements IImageEventRepository {
     }
 
     @Override
-    public Mono<ImageEvent> updateClassification(UUID imageEventId, String specie, BigDecimal specieConfidence, String failureReason) {
+    public Mono<ImageEvent> updateClassification(UUID imageEventId, String scientificName, BigDecimal specieConfidence, String failureReason) {
         log.info("Updating classification result for image event {}", imageEventId);
 
         return imageEventR2DBCRepository.findById(imageEventId)
                 .switchIfEmpty(Mono.error(new ImageEventNotFoundException("Not found: " + imageEventId)))
                 .flatMap(entity -> {
-                    if (specie == null) {
+                    if (scientificName == null) {
                         entity.setStatus(ImageStatus.FAILED);
                         entity.setFailureReason(failureReason);
                         return Mono.just(entity);
                     }
 
-                    return specieR2DBCRepository.findByScientificName(specie)
-                            .switchIfEmpty(Mono.error(new SpecieNotFoundException("Not found: " + specie)))
+                    return specieR2DBCRepository.findByScientificName(scientificName)
+                            .switchIfEmpty(Mono.error(new SpecieNotFoundException("Not found: " + scientificName)))
                             .map(specieEntity -> {
                                 entity.setSpeciesId(specieEntity.getId());
                                 entity.setSpeciesConfidence(specieConfidence);
