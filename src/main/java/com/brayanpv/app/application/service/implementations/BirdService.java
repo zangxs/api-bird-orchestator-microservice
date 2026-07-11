@@ -5,6 +5,7 @@ import com.brayanpv.app.application.dto.response.ImageUploadResponse;
 import com.brayanpv.app.application.dto.response.GenericResponse;
 import com.brayanpv.app.application.service.contracts.IBirdService;
 import com.brayanpv.app.domain.messaging.IEventPublisherPort;
+import com.brayanpv.app.domain.messaging.IImageEventResultBroker;
 import com.brayanpv.app.domain.model.BirdObserved;
 import com.brayanpv.app.domain.model.ImageEvent;
 import com.brayanpv.app.domain.model.enums.ImageStatus;
@@ -19,6 +20,7 @@ import org.springframework.http.codec.multipart.FilePart;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -30,27 +32,14 @@ public class BirdService implements IBirdService {
     private final IImageStoragePort imageStoragePort;
     private final IEventPublisherPort eventPublisherPort;
     private final IImageEventRepository imageEventRepository;
+    private final IImageEventResultBroker resultBroker;
 
     @Value("${rabbitmq.routing-key}")
     private String routingKey;
 
+    private static final Duration RESULT_TIMEOUT = Duration.ofSeconds(6);
 
-    //que debo hacer
-        /*
-        1. POST /images (Java)
-        2. Sube a S3
-        3. Guarda imagen + relación usuario en DB, estado = PROCESSING
-        4. Publica a cola "deteccion"
 
-        5. Detector (Python) consume "deteccion"
-        6. Descarga de S3
-        7. Corre modelo
-        8. Publica resultado a cola "deteccion-resultado" (bird: true/false, confidence, imageId)
-
-        9. Orquestador (Java) consume "deteccion-resultado"
-        10a. Si NOT bird → estado = NOT_A_BIRD (el job de limpieza se encarga de S3 después)
-        10b. Si bird → estado = BIRD_DETECTED → publica a cola "clasificacion"
-         */
     @Override
     public Mono<ImageUploadResponse> processImage(ImageUploadRequest imageUploadRequest) {
         log.info("Bird Detect service");
@@ -63,10 +52,16 @@ public class BirdService implements IBirdService {
                 .flatMap(imageEvent ->
                         eventPublisherPort.publish(routingKey, toBirdObserved(imageEvent)).thenReturn(imageEvent)
                 )
+                .flatMap(imageEvent ->
+                        resultBroker.awaitResult(imageEvent.getId(), RESULT_TIMEOUT)
+                                .defaultIfEmpty(imageEvent) // timeout: se queda con el ImageEvent original (PROCESSING)
+                )
                 .map(imageEvent -> ImageUploadResponse.builder()
-                                .imageEventId(imageEvent.getId())
-                                .status(imageEvent.getStatus().name())
-                                .build());
+                        .imageEventId(imageEvent.getId())
+                        .status(imageEvent.getStatus().name())
+                        .specieId(imageEvent.getSpecieId())
+                        .speciesConfidence(imageEvent.getSpecieConfidence())
+                        .build());
 
     }
 

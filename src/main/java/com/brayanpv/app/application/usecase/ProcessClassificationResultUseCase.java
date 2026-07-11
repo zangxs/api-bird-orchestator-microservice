@@ -1,6 +1,7 @@
 package com.brayanpv.app.application.usecase;
 
 import com.brayanpv.app.domain.messaging.IEventPublisherPort;
+import com.brayanpv.app.domain.messaging.IImageEventResultBroker;
 import com.brayanpv.app.domain.model.BirdClassificationResult;
 import com.brayanpv.app.domain.model.ImageEvent;
 import com.brayanpv.app.domain.model.ManualClassificationRequested;
@@ -20,6 +21,7 @@ public class ProcessClassificationResultUseCase implements IProcessClassificatio
 
     private final IImageEventRepository imageEventRepository;
     private final IEventPublisherPort eventPublisherPort;
+    private final IImageEventResultBroker resultBroker;
 
     @Value("${rabbitmq.manual-classification-routing-key}")
     private String manualClassificationRoutingKey;
@@ -37,6 +39,7 @@ public class ProcessClassificationResultUseCase implements IProcessClassificatio
                     if (imageEvent.getStatus() == ImageStatus.FAILED) {
                         return publishManualClassificationRequest(imageEvent, result.getFailureReason());
                     }
+                    resultBroker.complete(imageEvent);
                     return Mono.empty();
                 })
                 .then();

@@ -1,28 +1,45 @@
 # api-bird-orchestator-microservice
 
-Java 17 Spring Boot 3.2.5 (WebFlux) microservice for orchestrating bird detection workflows. Reactive stack with R2DBC (PostgreSQL), RabbitMQ (reactor-rabbitmq), and AWS S3 SDK v2 (async).
+Java 17 Spring Boot 3.2.5 (WebFlux) microservice for orchestrating bird detection and classification workflows. Reactive stack with R2DBC (PostgreSQL), RabbitMQ (reactor-rabbitmq), and AWS S3 SDK v2 (async).
 
 ## Architecture
 
 Clean Architecture with reactive programming:
 
 ```
-Domain (pure Java) → Application (use cases) → Infrastructure (adapters)
+Domain (pure Java) → Application (services / use cases) → Infrastructure (adapters)
 ```
 
-- **Domain**: Pure Java entities, enums, ports (interfaces), exceptions
-- **Application**: DTOs (records), service contracts & implementations
-- **Infrastructure**: Controllers, R2DBC adapters, S3 adapter, RabbitMQ producer/consumer, config
+- **Domain**: Pure Java entities, enums, ports (repository, storage, messaging, result broker), use-case contracts, exceptions
+- **Application**: DTOs (records), the original service contract/implementation (`IBirdService`/`BirdService`, inbound HTTP flow), and use cases for inbound RabbitMQ event handling (`ProcessDetectionResultUseCase`, `ProcessClassificationResultUseCase`, `CleanupRejectedImagesUseCase`)
+- **Infrastructure**: Controllers, R2DBC adapters, S3 adapter, RabbitMQ producer/consumers, in-memory result broker, scheduler, config
 
 All service/controller/port methods return `Mono<T>` or `Flux<T>`.
 
 ## Message Flow
 
-1. **POST `/bird/detect`** (multipart: image `FilePart` + `userId` UUID)
-2. `BirdService.processImage()` → uploads image to S3 → saves `ImageEvent(status=PROCESSING)` → publishes `BirdObserved` to RabbitMQ exchange `deteccion`
-3. **Python detector** (external) consumes `deteccion` → downloads from S3 → runs model → publishes `BirdDetectionResult` to `deteccion-resultado`
-4. `BirdDetectionEventConsumer` consumes `deteccion-resultado` → calls `IImageEventRepository.updateDetection(imageEventId, isBird, confidence)` → updates status to `BIRD_DETECTED` or `NOT_A_BIRD`
-5. *(Future)* If `BIRD_DETECTED` → publish to `clasificacion` queue for classification pipeline
+The flow is now synchronous-looking from the client's point of view: `POST /bird/detect` waits (up to a timeout) for the async pipeline to resolve before responding, using an in-memory result broker to bridge the HTTP request to the RabbitMQ consumers.
+
+1. **POST `/bird/detect`** (multipart: image `FilePart` + `userId` UUID) → `BirdService.processImage()`:
+   - uploads image to S3
+   - saves `ImageEvent(status=PROCESSING)`
+   - publishes `BirdObserved` to exchange `bird_detection.exchange` with routing key `bird_detection.pending`
+   - registers a wait on `IImageEventResultBroker.awaitResult(imageEventId, 6s timeout)` and blocks the reactive chain until the pipeline completes or the timeout elapses (falls back to the original `PROCESSING` `ImageEvent` on timeout)
+2. **Detection microservice** (external, Python) consumes `bird_detection.pending.queue` → downloads from S3 → runs the model → publishes `BirdDetectionResult` with routing key `bird_detection.result`
+3. `BirdDetectionEventConsumer` consumes `bird_detection.resultado.queue` → delegates to `ProcessDetectionResultUseCase`:
+   - `IImageEventRepository.updateDetection(imageEventId, isBird, confidence)` → status becomes `BIRD_DETECTED` or `NOT_A_BIRD`
+   - if it *is* a bird → publishes `ClassificationRequested` with routing key `bird_classification.pending` to hand off to the classification service
+   - if it's *not* a bird → calls `IImageEventResultBroker.complete(imageEvent)`, unblocking the original HTTP request with the `NOT_A_BIRD` result
+4. **Classification microservice** (external, Python — WIP) consumes `bird_classification.queue` → resolves the species → publishes `BirdClassificationResult` with routing key `bird_classification.result`
+5. `BirdClassificationEventConsumer` consumes `bird_classification.result.queue` → delegates to `ProcessClassificationResultUseCase`:
+   - `IImageEventRepository.updateClassification(imageEventId, scientificName, specieConfidence, failureReason)`
+   - if classification failed (status `FAILED`) → publishes `ManualClassificationRequested` with routing key `bird_classification.manual.pending`, for manual review
+   - otherwise → calls `IImageEventResultBroker.complete(imageEvent)`, unblocking the original HTTP request with the final species result
+6. A scheduled job, `RejectedImageCleanupScheduler` (`cleanup.rejected-images.fixed-delay-ms`, default 1h), runs `CleanupRejectedImagesUseCase`: finds `ImageEvent`s with status `NOT_A_BIRD`, deletes their S3 object, and marks them `EXPIRED`
+
+### Image status lifecycle
+
+`PROCESSING → BIRD_DETECTED | NOT_A_BIRD → IDENTIFYING → DONE | FAILED`, plus a replace-photo sub-flow (`PENDING_REPLACE_CONFIRMATION → REPLACED | REPLACE_REJECTED`) and `EXPIRED` (terminal state after cleanup of `NOT_A_BIRD` images).
 
 ## Quick Start
 
@@ -51,6 +68,9 @@ RABBITMQ_HOST=localhost
 RABBITMQ_PORT=5672
 RABBITMQ_USER=user
 RABBITMQ_PASSWORD=password
+
+# Optional
+CLEANUP_REJECTED_IMAGES_FIXED_DELAY_MS=3600000   # rejected-image cleanup interval, default 1h
 ```
 
 ### Run Locally
@@ -79,6 +99,8 @@ image: <file>
 userId: <uuid>
 ```
 
+The request holds open (up to a 6s internal timeout) while detection — and, if a bird is found, classification — resolves through RabbitMQ, so the response can already reflect the final state.
+
 **Response** (`200 OK`):
 ```json
 {
@@ -86,10 +108,13 @@ userId: <uuid>
   "code": 200,
   "data": {
     "imageEventId": "uuid",
-    "status": "PROCESSING"
+    "status": "DONE",
+    "specieId": "uuid",
+    "speciesConfidence": 0.93
   }
 }
 ```
+`status` may be `PROCESSING` (pipeline didn't finish within the timeout), `NOT_A_BIRD`, or a classification outcome (`DONE`/`FAILED`); `specieId`/`speciesConfidence` are `null` until classification completes.
 
 ### Health Check
 ```http
@@ -106,21 +131,38 @@ src/main/java/com/brayanpv/app/
 │   ├── dto/request/ImageUploadRequest.java
 │   ├── dto/response/ImageUploadResponse.java
 │   ├── dto/response/GenericResponse.java
-│   └── service/
-│       ├── contracts/IBirdService.java
-│       └── implementations/BirdService.java
+│   ├── service/
+│   │   ├── contracts/IBirdService.java
+│   │   └── implementations/BirdService.java
+│   └── usecase/
+│       ├── ProcessDetectionResultUseCase.java
+│       ├── ProcessClassificationResultUseCase.java
+│       └── CleanupRejectedImagesUseCase.java
 ├── domain/
 │   ├── model/
 │   │   ├── BirdObserved.java
 │   │   ├── BirdDetectionResult.java
+│   │   ├── BirdClassificationResult.java
+│   │   ├── ClassificationRequested.java
+│   │   ├── ManualClassificationRequested.java
 │   │   ├── ImageEvent.java
+│   │   ├── Specie.java
 │   │   └── enums/ImageStatus.java
 │   ├── exception/
 │   │   ├── DeserializationException.java
-│   │   └── ImageEventNotFoundException.java
-│   ├── repository/IImageEventRepository.java
+│   │   ├── ImageEventNotFoundException.java
+│   │   └── SpecieNotFoundException.java
+│   ├── repository/
+│   │   ├── IImageEventRepository.java
+│   │   └── ISpecieRepository.java
 │   ├── storage/IImageStoragePort.java
-│   └── messaging/IEventPublisherPort.java
+│   ├── messaging/
+│   │   ├── IEventPublisherPort.java
+│   │   └── IImageEventResultBroker.java
+│   └── usecase/contracts/
+│       ├── IProcessDetectionResultUseCase.java
+│       ├── IProcessClassificationResultUseCase.java
+│       └── ICleanupRejectedImagesUseCase.java
 ├── infrastructure/
 │   ├── web/
 │   │   ├── contracts/IBirdController.java
@@ -128,11 +170,17 @@ src/main/java/com/brayanpv/app/
 │   ├── storage/S3ImageStorageAdapter.java
 │   ├── persistence/
 │   │   ├── adapter/ImageEventRepository.java
+│   │   ├── adapter/SpecieRepository.java
 │   │   ├── repository/IImageEventR2DBCRepository.java
-│   │   └── entity/ImageEventEntity.java
+│   │   ├── repository/ISpecieR2DBCRepository.java
+│   │   ├── entity/ImageEventEntity.java
+│   │   └── entity/SpecieEntity.java
 │   ├── messaging/
-│   │   ├── producer/implementations/BirdObservedEventPublisher.java
-│   │   └── consumer/BirdDetectionEventConsumer.java
+│   │   ├── producer/RabbitEventPublisher.java
+│   │   ├── consumer/BirdDetectionEventConsumer.java
+│   │   ├── consumer/BirdClassificationEventConsumer.java
+│   │   └── broker/InMemoryImageEventResultBroker.java
+│   ├── scheduling/RejectedImageCleanupScheduler.java
 │   ├── configuration/
 │   │   ├── RabbitMQConfig.java
 │   │   ├── RabbitTopologyInitializer.java
@@ -141,6 +189,7 @@ src/main/java/com/brayanpv/app/
 │   └── mapper/ImageEventMapper.java
 └── test/
     ├── ApplicationTest.java
+    ├── application/service/implementations/BirdServiceTest.java
     └── infrastructure/web/implementations/BirdControllerTest.java
 ```
 
@@ -151,17 +200,26 @@ src/main/java/com/brayanpv/app/
 - `spring.r2dbc.url` — PostgreSQL via env vars
 - `management.endpoints.web.exposure.include: health,info`
 - `aws.s3` — bucket, credentials via env vars
-- `rabbitmq.*` — exchange, queues, routing keys (configured in `RabbitMQConfig.java`)
+- `cleanup.rejected-images.fixed-delay-ms` — interval for `RejectedImageCleanupScheduler`
+- `rabbitmq.*` — exchange, queues, routing keys, all bound in `RabbitMQConfig.java` against exchange `bird_detection.exchange`:
+
+| Key | Value |
+|---|---|
+| `queue` / `routing-key` | `bird_detection.pending.queue` / `bird_detection.pending` |
+| `result-queue` / `result-routing-key` | `bird_detection.resultado.queue` / `bird_detection.result` |
+| `classification-queue` / `classification-routing-key` | `bird_classification.queue` / `bird_classification.pending` |
+| `classification-result-queue` / `result-classification-routing-key` | `bird_classification.result.queue` / `bird_classification.result` |
+| `manual-classification-queue` / `manual-classification-routing-key` | `bird_classification.manual.queue` / `bird_classification.manual.pending` |
 
 ## Known Gaps / TODO
 
-- [ ] Integration tests with Testcontainers (PostgreSQL, RabbitMQ, MinIO)
+- [ ] Classification microservice's `classificate_bird()` is still a stub — no model inference wired up yet on the Python side
+- [ ] `SpecieRepository.findByScientificName()` is unimplemented (returns `null`, not `Mono.empty()`)
+- [ ] Integration tests with Testcontainers (PostgreSQL, RabbitMQ, MinIO) — none yet, `pom.xml` has no Testcontainers dependency
 - [ ] Request validation on `ImageUploadRequest`
 - [ ] OpenAPI/Swagger configuration
 - [ ] Global exception handler tests
-- [ ] Classification pipeline (step 5 in message flow)
 - [ ] `docker-compose.yml` for local dependencies
-- [ ] Add Testcontainers to `pom.xml`
 
 ## Tech Stack
 
