@@ -17,4 +17,6 @@ public class ImageEvent implements Serializable {
     private String s3Key;
     private ImageStatus status;
     private BigDecimal birdConfidence;
+    private UUID specieId;
+    private BigDecimal specieConfidence;
 }

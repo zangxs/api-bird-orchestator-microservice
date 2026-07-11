@@ -26,6 +26,8 @@ public class ImageEventMapper {
                 .status(imageEventEntity.getStatus())
                 .s3Key(imageEventEntity.getS3Key())
                 .birdConfidence(imageEventEntity.getBirdConfidence())
+                .specieConfidence(imageEventEntity.getSpeciesConfidence())
+                .specieId(imageEventEntity.getSpeciesId())
                 .build();
     }
 
