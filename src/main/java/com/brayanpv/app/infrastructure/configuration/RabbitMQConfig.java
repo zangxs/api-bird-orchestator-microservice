@@ -33,6 +33,24 @@ public class RabbitMQConfig {
     @Value("${rabbitmq.result-routing-key}")
     private String resultRoutingKey;
 
+    @Value("${rabbitmq.classification-queue}")
+    private String classificationQueue;
+
+    @Value("${rabbitmq.classification-routing-key}")
+    private String classificationRoutingKey;
+
+    @Value("${rabbitmq.classification-result-queue}")
+    private String classificationResultQueue;
+
+    @Value("${rabbitmq.result-classification-routing-key}")
+    private String resultClassificationRoutingKey;
+
+    @Value("${rabbitmq.manual-classification-queue}")
+    private String manualClassificationQueue;
+
+    @Value("${rabbitmq.manual-classification-routing-key}")
+    private String manualClassificationRoutingKey;
+
 
     @Bean
     public com.rabbitmq.client.ConnectionFactory nativeConnectionFactory() {
@@ -66,8 +84,14 @@ public class RabbitMQConfig {
                         .durable(true))
                 .then(sender.declareQueue(QueueSpecification.queue(queue).durable(true)))
                 .then(sender.declareQueue(QueueSpecification.queue(resultQueue).durable(true)))
+                .then(sender.declareQueue(QueueSpecification.queue(classificationQueue).durable(true)))
+                .then(sender.declareQueue(QueueSpecification.queue(classificationResultQueue).durable(true)))
+                .then(sender.declareQueue(QueueSpecification.queue(manualClassificationQueue).durable(true)))
                 .then(sender.bind(BindingSpecification.binding(exchange, routingKey, queue)))
                 .then(sender.bind(BindingSpecification.binding(exchange, resultRoutingKey, resultQueue)))
+                .then(sender.bind(BindingSpecification.binding(exchange, classificationRoutingKey, classificationQueue)))
+                .then(sender.bind(BindingSpecification.binding(exchange, resultClassificationRoutingKey, classificationResultQueue)))
+                .then(sender.bind(BindingSpecification.binding(exchange, manualClassificationRoutingKey, manualClassificationQueue)))
                 .then()
                 .cache(); // se ejecuta una sola vez, resultado cacheado
     }

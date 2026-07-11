@@ -34,7 +34,7 @@ public class RabbitEventPublisher implements IEventPublisherPort {
                     OutboundMessage message = new OutboundMessage(exchange, routingKey, body);
                     return sender.send(Mono.just(message));
                 })
-                .doOnSuccess(v -> log.info("Published bird observed {}", payload))
+                .doOnSuccess(v -> log.info("Published bird observed {}, to routig key: {}", payload, routingKey))
                 .doOnError(e -> log.error("Failed to publish bird observed {}", payload, e));
     }
 

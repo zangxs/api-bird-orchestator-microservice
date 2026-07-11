@@ -29,6 +29,10 @@ aws:
     access-key: ${AWS_S3_ACCESS_KEY:}
     secret-key: ${AWS_S3_SECRET_KEY:}
 
+cleanup:
+  rejected-images:
+    fixed-delay-ms: ${CLEANUP_REJECTED_IMAGES_FIXED_DELAY_MS:3600000}
+
 rabbitmq:
   exchange: bird_detection.exchange
   queue: bird_detection.pending.queue
@@ -39,3 +43,5 @@ rabbitmq:
   classification-queue: bird_classification.queue
   result-classification-routing-key: bird_classification.result
   classification-result-queue: bird_classification.result.queue
+  manual-classification-routing-key: bird_classification.manual.pending
+  manual-classification-queue: bird_classification.manual.queue

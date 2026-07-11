@@ -2,8 +2,7 @@ package com.brayanpv.app.infrastructure.messaging.consumer;
 
 import com.brayanpv.app.domain.exception.DeserializationException;
 import com.brayanpv.app.domain.model.BirdClassificationResult;
-import com.brayanpv.app.domain.model.BirdDetectionResult;
-import com.brayanpv.app.domain.repository.IImageEventRepository;
+import com.brayanpv.app.domain.usecase.contracts.IProcessClassificationResultUseCase;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
@@ -18,26 +17,18 @@ import java.io.IOException;
 @Log4j2
 public class BirdClassificationEventConsumer {
 
-    private final IImageEventRepository imageEventRepository;
+    private final IProcessClassificationResultUseCase processClassificationResultUseCase;
     private final Receiver receiver;
     private final ObjectMapper objectMapper;
 
-    @Value("${rabbitmq.result-queue}")
-    private String resultQueueName;
+    @Value("${rabbitmq.classification-result-queue}")
+    private String classificationResultQueueName;
 
     @PostConstruct
     public void start() {
-        receiver.consumeAutoAck(resultQueueName)
-                .flatMap(delivery -> {
-                    BirdClassificationResult message = deserialize(delivery.getBody());
-                    log.info("BirdClassificationResult: {}", message);
-                    return imageEventRepository.updateClassification(
-                            message.getImageEventId(),
-                            message.getSpecieId(),
-                            message.getSpecieConfidence(),
-                            message.getFailureReason()
-                    );
-                })
+        receiver.consumeAutoAck(classificationResultQueueName)
+                .flatMap(delivery -> processClassificationResultUseCase.execute(deserialize(delivery.getBody())))
+                .doOnError(e -> log.error("Failed to process classification result", e))
                 .subscribe();
     }
 
