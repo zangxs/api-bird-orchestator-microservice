@@ -32,7 +32,6 @@ public class ProcessDetectionResultUseCase implements IProcessDetectionResultUse
                 )
                 .flatMap(imageEvent -> {
                     if (result.isBird()) {
-                        log.info("Process Bird Detection Result");
                         ClassificationRequested event = ClassificationRequested.builder()
                                 .imageEventId(imageEvent.getId())
                                 .s3Key(imageEvent.getS3Key())
