@@ -12,6 +12,7 @@ import com.brayanpv.app.domain.repository.IImageEventRepository;
 import com.brayanpv.app.domain.storage.IImageStoragePort;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.buffer.DataBufferUtils;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.codec.multipart.FilePart;
@@ -29,6 +30,9 @@ public class BirdService implements IBirdService {
     private final IImageStoragePort imageStoragePort;
     private final IEventPublisherPort eventPublisherPort;
     private final IImageEventRepository imageEventRepository;
+
+    @Value("${rabbitmq.routing-key}")
+    private String routingKey;
 
 
     //que debo hacer
@@ -57,7 +61,7 @@ public class BirdService implements IBirdService {
                 .flatMap(bytes -> imageStoragePort.upload(bytes, key))
                 .then(saveImageEvent(imageUploadRequest, key))
                 .flatMap(imageEvent ->
-                        eventPublisherPort.publish(toBirdObserved(imageEvent)).thenReturn(imageEvent)
+                        eventPublisherPort.publish(routingKey, toBirdObserved(imageEvent)).thenReturn(imageEvent)
                 )
                 .map(imageEvent -> ImageUploadResponse.builder()
                                 .imageEventId(imageEvent.getId())

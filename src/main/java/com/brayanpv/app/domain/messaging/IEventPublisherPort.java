@@ -5,5 +5,5 @@ import reactor.core.publisher.Mono;
 
 public interface IEventPublisherPort {
 
-    Mono<Void> publish(BirdObserved birdObserved);
+    Mono<Void> publish(String routingKey, Object payload);
 }

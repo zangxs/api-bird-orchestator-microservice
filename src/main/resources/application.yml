@@ -35,3 +35,7 @@ rabbitmq:
   routing-key: bird_detection.pending
   result-queue: bird_detection.resultado.queue
   result-routing-key: bird_detection.result
+  classification-routing-key: bird_classification.pending
+  classification-queue: bird_classification.queue
+  result-classification-routing-key: bird_classification.result
+  classification-result-queue: bird_classification.result.queue

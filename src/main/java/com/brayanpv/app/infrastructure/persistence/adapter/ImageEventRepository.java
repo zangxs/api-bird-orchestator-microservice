@@ -35,7 +35,6 @@ public class ImageEventRepository implements IImageEventRepository {
     @Override
     public Mono<ImageEvent> updateDetection(UUID imageEventId, boolean isBird, BigDecimal confidence) {
         log.info("Updating detection result for image event {}", imageEventId);
-        log.info("isBird: {}", isBird);
         ImageStatus newStatus = isBird ? ImageStatus.BIRD_DETECTED : ImageStatus.NOT_A_BIRD;
 
         return imageEventR2DBCRepository.findById(imageEventId)
@@ -47,5 +46,12 @@ public class ImageEventRepository implements IImageEventRepository {
                 })
                 .flatMap(imageEventR2DBCRepository::save)
                 .map(imageEventMapper::toModelFromEntity);
+    }
+
+    @Override
+    public Mono<ImageEvent> updateClassification(UUID imageEventId, UUID specieID, BigDecimal specieConfidence, String failureReason) {
+        log.info("Updating classification result for image event {}", imageEventId);
+
+        return null;
     }
 }
