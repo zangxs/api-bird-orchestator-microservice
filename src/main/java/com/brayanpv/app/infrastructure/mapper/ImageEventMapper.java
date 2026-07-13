@@ -28,6 +28,7 @@ public class ImageEventMapper {
                 .birdConfidence(imageEventEntity.getBirdConfidence())
                 .specieConfidence(imageEventEntity.getSpeciesConfidence())
                 .specieId(imageEventEntity.getSpeciesId())
+                .failureReason(imageEventEntity.getFailureReason())
                 .build();
     }
 

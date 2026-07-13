@@ -1,4 +1,4 @@
-package com.brayanpv.app.domain.model;
+package com.brayanpv.app.application.dto.response;
 
 import com.brayanpv.app.domain.model.enums.ImageStatus;
 import lombok.Builder;
@@ -10,15 +10,13 @@ import java.util.UUID;
 
 @Data
 @Builder
-public class ImageEvent implements Serializable {
+public class ImageStatusResponse implements Serializable {
 
-    private UUID id;
-    private UUID userId;
-    private String s3Key;
-    private ImageStatus status;
-    private BigDecimal birdConfidence;
+    private UUID imageEventId;
+    private ImageStatus imageStatus;
     private UUID specieId;
-    private BigDecimal specieConfidence;
     private String scientificName;
+    private String commonName;
+    private BigDecimal specieConfidence;
     private String failureReason;
 }

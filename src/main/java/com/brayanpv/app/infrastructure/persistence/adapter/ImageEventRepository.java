@@ -96,4 +96,21 @@ public class ImageEventRepository implements IImageEventRepository {
                 .flatMap(imageEventR2DBCRepository::save)
                 .map(imageEventMapper::toModelFromEntity);
     }
+
+    @Override
+    public Mono<ImageEvent> findById(UUID imageEventId) {
+        log.info("Finding image event {}", imageEventId);
+        return imageEventR2DBCRepository.findById(imageEventId)
+                .switchIfEmpty(Mono.error(new ImageEventNotFoundException("Not found: " + imageEventId)))
+                .map(imageEventMapper::toModelFromEntity)
+                .flatMap(imageEvent -> {
+                    return specieR2DBCRepository.findById(imageEvent.getSpecieId())
+                            .switchIfEmpty(Mono.error(new SpecieNotFoundException("Not found By UUID: " + imageEvent.getSpecieId())))
+                            .map(especieEntity -> {
+                                imageEvent.setScientificName(especieEntity.getScientificName());
+                                return imageEvent;
+                            });
+
+                });
+    }
 }

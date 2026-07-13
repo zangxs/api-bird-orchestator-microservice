@@ -1,6 +1,7 @@
 package com.brayanpv.app.application.service.implementations;
 
 import com.brayanpv.app.application.dto.request.ImageUploadRequest;
+import com.brayanpv.app.application.dto.response.ImageStatusResponse;
 import com.brayanpv.app.application.dto.response.ImageUploadResponse;
 import com.brayanpv.app.application.dto.response.GenericResponse;
 import com.brayanpv.app.application.service.contracts.IBirdService;
@@ -65,7 +66,21 @@ public class BirdService implements IBirdService {
 
     }
 
-private String buildS3Key(UUID userId) {
+    @Override
+    public Mono<ImageStatusResponse> getImageStatus(UUID imageEventId) {
+        log.info("Bird Detect service checking status");
+        return imageEventRepository.findById(imageEventId).map(imageEvent -> {
+            return ImageStatusResponse.builder()
+                    .imageEventId(imageEvent.getId())
+                    .specieConfidence(imageEvent.getSpecieConfidence())
+                    .imageStatus(imageEvent.getStatus())
+                    .failureReason(imageEvent.getFailureReason())
+                    .build();
+        });
+
+    }
+
+    private String buildS3Key(UUID userId) {
         return "images/%s/%s.jpg".formatted(userId, UUID.randomUUID());
     }
 
