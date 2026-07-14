@@ -14,4 +14,6 @@ public interface IImageEventRepository {
     Mono<ImageEvent> updateClassification(UUID imageEventId, String scientificName, BigDecimal specieConfidence, String failureReason);
     Flux<ImageEvent> findByStatus(ImageStatus status);
     Mono<ImageEvent> markExpired(UUID imageEventId);
+    Mono<ImageEvent> findById(UUID imageEventId);
+    Flux<ImageEvent> findByUserId(UUID userId);
 }

@@ -96,4 +96,37 @@ public class ImageEventRepository implements IImageEventRepository {
                 .flatMap(imageEventR2DBCRepository::save)
                 .map(imageEventMapper::toModelFromEntity);
     }
+
+    @Override
+    public Mono<ImageEvent> findById(UUID imageEventId) {
+        log.info("Finding image event {}", imageEventId);
+        return imageEventR2DBCRepository.findById(imageEventId)
+                .switchIfEmpty(Mono.error(new ImageEventNotFoundException("Not found: " + imageEventId)))
+                .map(imageEventMapper::toModelFromEntity)
+                .flatMap(imageEvent -> {
+                    if (imageEvent.getSpecieId() == null) {
+                        return Mono.just(imageEvent);
+                    }
+                    return specieR2DBCRepository.findById(imageEvent.getSpecieId())
+                            .switchIfEmpty(Mono.error(new SpecieNotFoundException("Not found By UUID: " + imageEvent.getSpecieId())))
+                            .map(especieEntity -> {
+                                imageEvent.setScientificName(especieEntity.getScientificName());
+                                return imageEvent;
+                            });
+                })
+                .doOnNext(imageEvent -> log.info("Image event {}", imageEvent));
+    }
+
+    @Override
+    public Flux<ImageEvent> findByUserId(UUID userId) {
+        log.info("Finding image event by user id {}", userId);
+        return imageEventR2DBCRepository.findByUserIdAndStatusOrderByCreatedAtDesc(userId, ImageStatus.DONE)
+                .map(imageEventMapper::toModelFromEntity)
+                .flatMap(imageEvent -> specieR2DBCRepository.findById(imageEvent.getSpecieId())
+                        .switchIfEmpty(Mono.error(new SpecieNotFoundException("Not found By UUID: " + imageEvent.getSpecieId())))
+                        .map(especieEntity -> {
+                            imageEvent.setScientificName(especieEntity.getScientificName());
+                            return imageEvent;
+                        }));
+    }
 }
