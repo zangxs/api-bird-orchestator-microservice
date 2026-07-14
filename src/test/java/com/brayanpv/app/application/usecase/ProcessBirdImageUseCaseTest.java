@@ -1,14 +1,15 @@
-package com.brayanpv.app.application.service.implementations;
+package com.brayanpv.app.application.usecase;
 
 import com.brayanpv.app.application.dto.request.ImageUploadRequest;
 import com.brayanpv.app.domain.messaging.IEventPublisherPort;
+import com.brayanpv.app.domain.messaging.IImageEventResultBroker;
 import com.brayanpv.app.domain.model.BirdObserved;
 import com.brayanpv.app.domain.model.ImageEvent;
 import com.brayanpv.app.domain.model.enums.ImageStatus;
 import com.brayanpv.app.domain.repository.IImageEventRepository;
 import com.brayanpv.app.domain.storage.IImageStoragePort;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
@@ -22,6 +23,7 @@ import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -29,12 +31,11 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
-class BirdServiceTest {
+class ProcessBirdImageUseCaseTest {
 
     private static final String ROUTING_KEY = "bird_detection.pending";
 
@@ -47,12 +48,15 @@ class BirdServiceTest {
     @Mock
     private IImageEventRepository imageEventRepository;
 
-    private BirdService birdService;
+    @Mock
+    private IImageEventResultBroker resultBroker;
+
+    private ProcessBirdImageUseCase useCase;
 
     @BeforeEach
     void setUp() {
-        birdService = new BirdService(imageStoragePort, eventPublisherPort, imageEventRepository);
-        ReflectionTestUtils.setField(birdService, "routingKey", ROUTING_KEY);
+        useCase = new ProcessBirdImageUseCase(imageStoragePort, eventPublisherPort, imageEventRepository, resultBroker);
+        ReflectionTestUtils.setField(useCase, "routingKey", ROUTING_KEY);
     }
 
     private FilePart mockFilePart(byte[] content) {
@@ -63,7 +67,7 @@ class BirdServiceTest {
     }
 
     @Test
-    void processImage_happyPath_uploadsSavesAndPublishes() {
+    void execute_happyPath_uploadsSavesPublishesAndAwaitsResult() {
         UUID userId = UUID.randomUUID();
         UUID imageEventId = UUID.randomUUID();
         FilePart filePart = mockFilePart("fake-image-bytes".getBytes(StandardCharsets.UTF_8));
@@ -84,8 +88,9 @@ class BirdServiceTest {
         });
 
         when(eventPublisherPort.publish(eq(ROUTING_KEY), any(BirdObserved.class))).thenReturn(Mono.empty());
+        when(resultBroker.awaitResult(eq(imageEventId), any(Duration.class))).thenReturn(Mono.empty());
 
-        StepVerifier.create(birdService.processImage(request))
+        StepVerifier.create(useCase.execute(request))
                 .assertNext(response -> {
                     assertThat(response.getImageEventId()).isEqualTo(imageEventId);
                     assertThat(response.getStatus()).isEqualTo(ImageStatus.PROCESSING.name());
@@ -108,9 +113,39 @@ class BirdServiceTest {
         assertThat(published.getStatus()).isEqualTo(ImageStatus.PROCESSING.name());
     }
 
+    @Test
+    void execute_whenBrokerResolvesResult_returnsResolvedStatus() {
+        UUID userId = UUID.randomUUID();
+        UUID imageEventId = UUID.randomUUID();
+        FilePart filePart = mockFilePart("fake-image-bytes".getBytes(StandardCharsets.UTF_8));
+        ImageUploadRequest request = new ImageUploadRequest(filePart, userId);
+
+        when(imageStoragePort.upload(any(byte[].class), anyString())).thenReturn(Mono.just("s3-key"));
+        when(imageEventRepository.save(any(ImageEvent.class))).thenAnswer(invocation -> {
+            ImageEvent toSave = invocation.getArgument(0);
+            return Mono.just(ImageEvent.builder()
+                    .id(imageEventId)
+                    .userId(toSave.getUserId())
+                    .s3Key(toSave.getS3Key())
+                    .status(toSave.getStatus())
+                    .build());
+        });
+        when(eventPublisherPort.publish(anyString(), any())).thenReturn(Mono.empty());
+
+        ImageEvent resolved = ImageEvent.builder()
+                .id(imageEventId)
+                .userId(userId)
+                .status(ImageStatus.BIRD_DETECTED)
+                .build();
+        when(resultBroker.awaitResult(eq(imageEventId), any(Duration.class))).thenReturn(Mono.just(resolved));
+
+        StepVerifier.create(useCase.execute(request))
+                .assertNext(response -> assertThat(response.getStatus()).isEqualTo(ImageStatus.BIRD_DETECTED.name()))
+                .verifyComplete();
+    }
 
     @Test
-    void processImage_whenPublishFails_propagatesError() {
+    void execute_whenPublishFails_propagatesError() {
         UUID userId = UUID.randomUUID();
         UUID imageEventId = UUID.randomUUID();
         FilePart filePart = mockFilePart("fake-image-bytes".getBytes(StandardCharsets.UTF_8));
@@ -128,7 +163,7 @@ class BirdServiceTest {
         });
         when(eventPublisherPort.publish(anyString(), any())).thenReturn(Mono.error(new RuntimeException("publish failed")));
 
-        StepVerifier.create(birdService.processImage(request))
+        StepVerifier.create(useCase.execute(request))
                 .expectErrorMessage("publish failed")
                 .verify();
     }

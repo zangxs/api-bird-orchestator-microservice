@@ -4,7 +4,8 @@ import com.brayanpv.app.application.dto.request.ImageUploadRequest;
 import com.brayanpv.app.application.dto.response.ImageStatusResponse;
 import com.brayanpv.app.application.dto.response.ImageUploadResponse;
 import com.brayanpv.app.application.dto.response.GenericResponse;
-import com.brayanpv.app.application.service.contracts.IBirdService;
+import com.brayanpv.app.application.usecase.contracts.IGetImageStatusUseCase;
+import com.brayanpv.app.application.usecase.contracts.IProcessBirdImageUseCase;
 import com.brayanpv.app.infrastructure.web.contracts.IBirdController;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
@@ -25,7 +26,8 @@ import java.util.UUID;
 @Log4j2
 public class BirdController implements IBirdController {
 
-    private final IBirdService birdService;
+    private final IProcessBirdImageUseCase processBirdImageUseCase;
+    private final IGetImageStatusUseCase getImageStatusUseCase;
 
     @PostMapping(path = "/detect", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Override
@@ -36,7 +38,7 @@ public class BirdController implements IBirdController {
         UUID userId = UUID.fromString(userIdStr);
         ImageUploadRequest imageUploadRequest = new ImageUploadRequest(image, userId);
 
-        return birdService.processImage(imageUploadRequest).flatMap(response -> {
+        return processBirdImageUseCase.execute(imageUploadRequest).flatMap(response -> {
 
             GenericResponse<ImageUploadResponse> generic = GenericResponse.<ImageUploadResponse>builder()
                     .dateTime(LocalDateTime.now(ZoneOffset.UTC))
@@ -53,7 +55,7 @@ public class BirdController implements IBirdController {
     public Mono<ResponseEntity<GenericResponse<ImageStatusResponse>>> getImageStatus(String imageEventId) {
         log.info("Getting Image Status");
         UUID eventUudId = UUID.fromString(imageEventId);
-        return birdService.getImageStatus(eventUudId).flatMap(response -> {
+        return getImageStatusUseCase.execute(eventUudId).flatMap(response -> {
             GenericResponse<ImageStatusResponse> generic = GenericResponse.<ImageStatusResponse>builder()
                     .dateTime(LocalDateTime.now(ZoneOffset.UTC))
                     .code(HttpStatus.OK.value())

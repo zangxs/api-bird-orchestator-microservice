@@ -1,10 +1,8 @@
-package com.brayanpv.app.application.service.implementations;
+package com.brayanpv.app.application.usecase;
 
 import com.brayanpv.app.application.dto.request.ImageUploadRequest;
-import com.brayanpv.app.application.dto.response.ImageStatusResponse;
 import com.brayanpv.app.application.dto.response.ImageUploadResponse;
-import com.brayanpv.app.application.dto.response.GenericResponse;
-import com.brayanpv.app.application.service.contracts.IBirdService;
+import com.brayanpv.app.application.usecase.contracts.IProcessBirdImageUseCase;
 import com.brayanpv.app.domain.messaging.IEventPublisherPort;
 import com.brayanpv.app.domain.messaging.IImageEventResultBroker;
 import com.brayanpv.app.domain.model.BirdObserved;
@@ -16,19 +14,17 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.buffer.DataBufferUtils;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.codec.multipart.FilePart;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
 import java.time.Duration;
-import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Service
 @Log4j2
 @RequiredArgsConstructor
-public class BirdService implements IBirdService {
+public class ProcessBirdImageUseCase implements IProcessBirdImageUseCase {
 
     private final IImageStoragePort imageStoragePort;
     private final IEventPublisherPort eventPublisherPort;
@@ -40,10 +36,9 @@ public class BirdService implements IBirdService {
 
     private static final Duration RESULT_TIMEOUT = Duration.ofSeconds(6);
 
-
     @Override
-    public Mono<ImageUploadResponse> processImage(ImageUploadRequest imageUploadRequest) {
-        log.info("Bird Detect service");
+    public Mono<ImageUploadResponse> execute(ImageUploadRequest imageUploadRequest) {
+        log.info("Processing bird image");
 
         String key = buildS3Key(imageUploadRequest.userId());
 
@@ -63,21 +58,6 @@ public class BirdService implements IBirdService {
                         .specieId(imageEvent.getSpecieId())
                         .speciesConfidence(imageEvent.getSpecieConfidence())
                         .build());
-
-    }
-
-    @Override
-    public Mono<ImageStatusResponse> getImageStatus(UUID imageEventId) {
-        log.info("Bird Detect service checking status");
-        return imageEventRepository.findById(imageEventId).map(imageEvent -> {
-            return ImageStatusResponse.builder()
-                    .imageEventId(imageEvent.getId())
-                    .specieConfidence(imageEvent.getSpecieConfidence())
-                    .imageStatus(imageEvent.getStatus())
-                    .failureReason(imageEvent.getFailureReason())
-                    .build();
-        });
-
     }
 
     private String buildS3Key(UUID userId) {
