@@ -122,13 +122,11 @@ public class ImageEventRepository implements IImageEventRepository {
         log.info("Finding image event by user id {}", userId);
         return imageEventR2DBCRepository.findByUserIdAndStatusOrderByCreatedAtDesc(userId, ImageStatus.DONE)
                 .map(imageEventMapper::toModelFromEntity)
-                .flatMap(imageEvent -> {
-                    return specieR2DBCRepository.findById(imageEvent.getSpecieId())
-                            .switchIfEmpty(Mono.error(new SpecieNotFoundException("Not found By UUID: " + imageEvent.getSpecieId())))
-                            .map(especieEntity -> {
-                                imageEvent.setScientificName(especieEntity.getScientificName());
-                                return imageEvent;
-                            });
-                });
+                .flatMap(imageEvent -> specieR2DBCRepository.findById(imageEvent.getSpecieId())
+                        .switchIfEmpty(Mono.error(new SpecieNotFoundException("Not found By UUID: " + imageEvent.getSpecieId())))
+                        .map(especieEntity -> {
+                            imageEvent.setScientificName(especieEntity.getScientificName());
+                            return imageEvent;
+                        }));
     }
 }
