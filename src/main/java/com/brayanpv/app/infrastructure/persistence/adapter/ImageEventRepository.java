@@ -102,8 +102,9 @@ public class ImageEventRepository implements IImageEventRepository {
         log.info("Finding image event {}", imageEventId);
         return imageEventR2DBCRepository.findById(imageEventId)
                 .switchIfEmpty(Mono.error(new ImageEventNotFoundException("Not found: " + imageEventId)))
-                .map(imageEventMapper::toModelFromEntity)
+                .map(imageEventMapper::toModelFromEntity)//TODO revisar en caso de que no se haya identificado el ave
                 .flatMap(imageEvent -> {
+                    log.info("Image event {}", imageEvent);
                     return specieR2DBCRepository.findById(imageEvent.getSpecieId())
                             .switchIfEmpty(Mono.error(new SpecieNotFoundException("Not found By UUID: " + imageEvent.getSpecieId())))
                             .map(especieEntity -> {

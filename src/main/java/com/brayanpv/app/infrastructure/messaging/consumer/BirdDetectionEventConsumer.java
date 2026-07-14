@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+import reactor.core.publisher.Mono;
 import reactor.rabbitmq.Receiver;
 
 import java.io.IOException;
@@ -32,18 +33,23 @@ public class BirdDetectionEventConsumer {
     @PostConstruct
     public void start() {
         receiver.consumeAutoAck(resultQueueName)
-                .flatMap(delivery -> processDetectionResultUseCase.execute(deserialize(delivery.getBody())))
-                .doOnError(e -> log.error("Failed to process detection result", e))
+                .flatMap(delivery -> deserialize(delivery.getBody())
+                        .flatMap(processDetectionResultUseCase::execute)
+                        .onErrorResume(e -> {
+                            log.error("Failed to process detection result", e);
+                            return Mono.empty();
+                        }))
                 .subscribe();
     }
 
-    private BirdDetectionResult deserialize(byte[] body) {
-        try {
-            return objectMapper.readValue(body, BirdDetectionResult.class);
-        } catch (IOException e) {
-            log.error(e);
-            throw new DeserializationException("Failed to deserialize detection result");
-        }
+    private Mono<BirdDetectionResult> deserialize(byte[] body) {
+        return Mono.fromCallable(() -> {
+            try {
+                return objectMapper.readValue(body, BirdDetectionResult.class);
+            } catch (IOException e) {
+                throw new DeserializationException("Failed to deserialize detection result");
+            }
+        });
     }
 
 

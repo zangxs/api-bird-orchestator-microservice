@@ -215,6 +215,8 @@ src/main/java/com/brayanpv/app/
 
 - [ ] Classification microservice's `classificate_bird()` is still a stub — no model inference wired up yet on the Python side
 - [ ] `SpecieRepository.findByScientificName()` is unimplemented (returns `null`, not `Mono.empty()`)
+- [ ] `IImageEventResultBroker` is in-memory only (`ConcurrentHashMap` + `Sinks.One`) — won't coordinate correctly if the orchestrator is horizontally scaled
+- [ ] No consumer for `bird_classification.manual.queue` in this repo (presumably a manual-review tool elsewhere)
 - [ ] Integration tests with Testcontainers (PostgreSQL, RabbitMQ, MinIO) — none yet, `pom.xml` has no Testcontainers dependency
 - [ ] Request validation on `ImageUploadRequest`
 - [ ] OpenAPI/Swagger configuration
