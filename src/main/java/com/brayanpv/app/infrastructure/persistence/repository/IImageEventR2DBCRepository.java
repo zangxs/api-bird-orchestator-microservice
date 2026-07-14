@@ -9,5 +9,5 @@ import java.util.UUID;
 
 public interface IImageEventR2DBCRepository extends ReactiveCrudRepository<ImageEventEntity, UUID> {
     Flux<ImageEventEntity> findByStatus(ImageStatus status);
-    Flux<ImageEventEntity> findByUserIdAndStatus(UUID userId,  ImageStatus status);
+    Flux<ImageEventEntity> findByUserIdAndStatusOrderByCreatedAtDesc(UUID userId,  ImageStatus status);
 }

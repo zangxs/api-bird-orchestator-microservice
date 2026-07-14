@@ -24,7 +24,7 @@ public class GetImageStatusUseCase implements IGetImageStatusUseCase {
                 .map(imageEvent -> ImageStatusResponse.builder()
                         .imageEventId(imageEvent.getId())
                         .specieConfidence(imageEvent.getSpecieConfidence())
-                        .imageStatus(imageEvent.getStatus())
+                        .status(imageEvent.getStatus())
                         .failureReason(imageEvent.getFailureReason())
                         .build());
     }

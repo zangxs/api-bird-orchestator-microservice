@@ -13,7 +13,7 @@ import java.util.UUID;
 public class ImageStatusResponse implements Serializable {
 
     private UUID imageEventId;
-    private ImageStatus imageStatus;
+    private ImageStatus status;
     private UUID specieId;
     private String scientificName;
     private String commonName;
