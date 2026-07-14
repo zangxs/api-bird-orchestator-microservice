@@ -15,4 +15,5 @@ public interface IImageEventRepository {
     Flux<ImageEvent> findByStatus(ImageStatus status);
     Mono<ImageEvent> markExpired(UUID imageEventId);
     Mono<ImageEvent> findById(UUID imageEventId);
+    Flux<ImageEvent> findByUserId(UUID userId);
 }

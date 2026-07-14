@@ -102,16 +102,25 @@ public class ImageEventRepository implements IImageEventRepository {
         log.info("Finding image event {}", imageEventId);
         return imageEventR2DBCRepository.findById(imageEventId)
                 .switchIfEmpty(Mono.error(new ImageEventNotFoundException("Not found: " + imageEventId)))
-                .map(imageEventMapper::toModelFromEntity)//TODO revisar en caso de que no se haya identificado el ave
+                .map(imageEventMapper::toModelFromEntity)
                 .flatMap(imageEvent -> {
-                    log.info("Image event {}", imageEvent);
+                    if (imageEvent.getSpecieId() == null) {
+                        return Mono.just(imageEvent);
+                    }
                     return specieR2DBCRepository.findById(imageEvent.getSpecieId())
                             .switchIfEmpty(Mono.error(new SpecieNotFoundException("Not found By UUID: " + imageEvent.getSpecieId())))
                             .map(especieEntity -> {
                                 imageEvent.setScientificName(especieEntity.getScientificName());
                                 return imageEvent;
                             });
+                })
+                .doOnNext(imageEvent -> log.info("Image event {}", imageEvent));
+    }
 
-                });
+    @Override
+    public Flux<ImageEvent> findByUserId(UUID userId) {
+        log.info("Finding image event by user id {}", userId);
+        return imageEventR2DBCRepository.findByUserIdAndStatus(userId, ImageStatus.DONE)
+                .map(imageEventMapper::toModelFromEntity);
     }
 }
