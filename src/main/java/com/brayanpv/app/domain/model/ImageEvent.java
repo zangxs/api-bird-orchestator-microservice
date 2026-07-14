@@ -3,6 +3,7 @@ package com.brayanpv.app.domain.model;
 import com.brayanpv.app.domain.model.enums.ImageStatus;
 import lombok.Builder;
 import lombok.Data;
+import org.springframework.data.relational.core.mapping.Column;
 
 import java.io.Serializable;
 import java.math.BigDecimal;
@@ -21,4 +22,6 @@ public class ImageEvent implements Serializable {
     private BigDecimal specieConfidence;
     private String scientificName;
     private String failureReason;
+    private BigDecimal latitude;
+    private BigDecimal longitude;
 }

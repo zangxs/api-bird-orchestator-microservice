@@ -15,6 +15,8 @@ public class ImageEventMapper {
                 .status(imageEvent.getStatus())
                 .s3Key(imageEvent.getS3Key())
                 .userId(imageEvent.getUserId())
+                .latitude(imageEvent.getLatitude())
+                .longitude(imageEvent.getLongitude())
                 .build();
     }
 
