@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Cache local Maven repository
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-m2-
+
+      - name: Cache OWASP Dependency-Check NVD database
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository/org/owasp/dependency-check-data
+          key: ${{ runner.os }}-dependency-check-data-${{ github.run_id }}
+          restore-keys: |
+            ${{ runner.os }}-dependency-check-data-
+
+      - name: mvn verify (unit tests, JaCoCo 80% gate, OWASP Dependency-Check)
+        # Dependency-Check's NVD update is heavily rate-limited without an API key. Set NVD_API_KEY
+        # as a repo secret (https://nvd.nist.gov/developers/request-an-api-key) to speed this up;
+        # the build still works without one, just slower on cache misses. Read from the
+        # nvdApiKeyEnvironmentVariable configured in pom.xml rather than a -D flag (see
+        # GHSA-qqhq-8r2c-c3f5 - -D values can leak through Maven debug logging).
+        run: mvn -B verify
+        env:
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+
+      - name: Upload JaCoCo coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-report
+          path: target/site/jacoco/
+          retention-days: 14
+
+      - name: Upload OWASP Dependency-Check report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-check-report
+          path: target/dependency-check-report/
+          retention-days: 14
