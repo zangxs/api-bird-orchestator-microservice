@@ -1,6 +1,7 @@
 package com.brayanpv.app.domain.repository;
 
 import com.brayanpv.app.domain.model.ImageEvent;
+import com.brayanpv.app.domain.model.MapSighting;
 import com.brayanpv.app.domain.model.enums.ImageStatus;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -16,4 +17,5 @@ public interface IImageEventRepository {
     Mono<ImageEvent> markExpired(UUID imageEventId);
     Mono<ImageEvent> findById(UUID imageEventId);
     Flux<ImageEvent> findByUserId(UUID userId);
+    Flux<MapSighting> findDoneSightingsInBounds(BigDecimal minLat, BigDecimal maxLat, BigDecimal minLng, BigDecimal maxLng);
 }

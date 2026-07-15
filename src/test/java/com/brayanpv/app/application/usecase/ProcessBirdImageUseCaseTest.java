@@ -22,6 +22,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
+import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.UUID;
@@ -67,11 +68,29 @@ class ProcessBirdImageUseCaseTest {
     }
 
     @Test
+    void execute_whenUploadExceedsMaxSize_rejectsWithoutBufferingUnboundedMemory() {
+        UUID userId = UUID.randomUUID();
+        // One buffer just over the 10 MB cap declared in ProcessBirdImageUseCase.
+        byte[] oversized = new byte[10 * 1024 * 1024 + 1];
+        FilePart filePart = mockFilePart(oversized);
+        ImageUploadRequest request = new ImageUploadRequest(filePart, userId, null, null);
+
+        // .then(saveImageEvent(...)) constructs its argument mono eagerly regardless of whether
+        // the upstream chain ever reaches it, so imageEventRepository.save(...) must be stubbed
+        // even though this path always errors out before extractBytes() completes.
+        when(imageEventRepository.save(any(ImageEvent.class))).thenReturn(Mono.empty());
+
+        StepVerifier.create(useCase.execute(request))
+                .expectError(IllegalStateException.class) // DataBufferLimitException
+                .verify();
+    }
+
+    @Test
     void execute_happyPath_uploadsSavesPublishesAndAwaitsResult() {
         UUID userId = UUID.randomUUID();
         UUID imageEventId = UUID.randomUUID();
         FilePart filePart = mockFilePart("fake-image-bytes".getBytes(StandardCharsets.UTF_8));
-        ImageUploadRequest request = new ImageUploadRequest(filePart, userId);
+        ImageUploadRequest request = new ImageUploadRequest(filePart, userId, null, null);
 
         when(imageStoragePort.upload(any(byte[].class), anyString())).thenReturn(Mono.just("s3-key"));
 
@@ -114,11 +133,46 @@ class ProcessBirdImageUseCaseTest {
     }
 
     @Test
+    void execute_withCoordinates_savesLatitudeAndLongitudeOnImageEvent() {
+        UUID userId = UUID.randomUUID();
+        UUID imageEventId = UUID.randomUUID();
+        BigDecimal latitude = new BigDecimal("40.712800");
+        BigDecimal longitude = new BigDecimal("-74.006000");
+        FilePart filePart = mockFilePart("fake-image-bytes".getBytes(StandardCharsets.UTF_8));
+        ImageUploadRequest request = new ImageUploadRequest(filePart, userId, longitude, latitude);
+
+        when(imageStoragePort.upload(any(byte[].class), anyString())).thenReturn(Mono.just("s3-key"));
+
+        ArgumentCaptor<ImageEvent> savedEventCaptor = ArgumentCaptor.forClass(ImageEvent.class);
+        when(imageEventRepository.save(savedEventCaptor.capture())).thenAnswer(invocation -> {
+            ImageEvent toSave = invocation.getArgument(0);
+            return Mono.just(ImageEvent.builder()
+                    .id(imageEventId)
+                    .userId(toSave.getUserId())
+                    .s3Key(toSave.getS3Key())
+                    .status(toSave.getStatus())
+                    .latitude(toSave.getLatitude())
+                    .longitude(toSave.getLongitude())
+                    .build());
+        });
+        when(eventPublisherPort.publish(anyString(), any())).thenReturn(Mono.empty());
+        when(resultBroker.awaitResult(eq(imageEventId), any(Duration.class))).thenReturn(Mono.empty());
+
+        StepVerifier.create(useCase.execute(request))
+                .assertNext(response -> assertThat(response.getImageEventId()).isEqualTo(imageEventId))
+                .verifyComplete();
+
+        ImageEvent savedEvent = savedEventCaptor.getValue();
+        assertThat(savedEvent.getLatitude()).isEqualByComparingTo(latitude);
+        assertThat(savedEvent.getLongitude()).isEqualByComparingTo(longitude);
+    }
+
+    @Test
     void execute_whenBrokerResolvesResult_returnsResolvedStatus() {
         UUID userId = UUID.randomUUID();
         UUID imageEventId = UUID.randomUUID();
         FilePart filePart = mockFilePart("fake-image-bytes".getBytes(StandardCharsets.UTF_8));
-        ImageUploadRequest request = new ImageUploadRequest(filePart, userId);
+        ImageUploadRequest request = new ImageUploadRequest(filePart, userId, null, null);
 
         when(imageStoragePort.upload(any(byte[].class), anyString())).thenReturn(Mono.just("s3-key"));
         when(imageEventRepository.save(any(ImageEvent.class))).thenAnswer(invocation -> {
@@ -149,7 +203,7 @@ class ProcessBirdImageUseCaseTest {
         UUID userId = UUID.randomUUID();
         UUID imageEventId = UUID.randomUUID();
         FilePart filePart = mockFilePart("fake-image-bytes".getBytes(StandardCharsets.UTF_8));
-        ImageUploadRequest request = new ImageUploadRequest(filePart, userId);
+        ImageUploadRequest request = new ImageUploadRequest(filePart, userId, null, null);
 
         when(imageStoragePort.upload(any(byte[].class), anyString())).thenReturn(Mono.just("s3-key"));
         when(imageEventRepository.save(any(ImageEvent.class))).thenAnswer(invocation -> {

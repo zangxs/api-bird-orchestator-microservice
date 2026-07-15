@@ -3,11 +3,12 @@ package com.brayanpv.app.infrastructure.persistence.adapter;
 import com.brayanpv.app.domain.exception.ImageEventNotFoundException;
 import com.brayanpv.app.domain.exception.SpecieNotFoundException;
 import com.brayanpv.app.domain.model.ImageEvent;
+import com.brayanpv.app.domain.model.MapSighting;
 import com.brayanpv.app.domain.model.enums.ImageStatus;
 import com.brayanpv.app.domain.repository.IImageEventRepository;
 import com.brayanpv.app.infrastructure.mapper.ImageEventMapper;
+import com.brayanpv.app.infrastructure.persistence.cache.SpecieCacheService;
 import com.brayanpv.app.infrastructure.persistence.repository.IImageEventR2DBCRepository;
-import com.brayanpv.app.infrastructure.persistence.repository.ISpecieR2DBCRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Repository;
@@ -24,7 +25,7 @@ public class ImageEventRepository implements IImageEventRepository {
 
     private final IImageEventR2DBCRepository imageEventR2DBCRepository;
     private final ImageEventMapper imageEventMapper;
-    private final ISpecieR2DBCRepository specieR2DBCRepository;
+    private final SpecieCacheService specieCacheService;
 
     @Override
     public Mono<ImageEvent> save(ImageEvent imageEvent) {
@@ -64,8 +65,7 @@ public class ImageEventRepository implements IImageEventRepository {
                         entity.setFailureReason(failureReason);
                         return Mono.just(entity);
                     }
-
-                    return specieR2DBCRepository.findByScientificName(scientificName)
+                    return specieCacheService.findByScientificName(scientificName)
                             .switchIfEmpty(Mono.error(new SpecieNotFoundException("Not found: " + scientificName)))
                             .map(specieEntity -> {
                                 entity.setSpeciesId(specieEntity.getId());
@@ -99,7 +99,7 @@ public class ImageEventRepository implements IImageEventRepository {
 
     @Override
     public Mono<ImageEvent> findById(UUID imageEventId) {
-        log.info("Finding image event {}", imageEventId);
+        log.info("Finding image event by Id{}", imageEventId);
         return imageEventR2DBCRepository.findById(imageEventId)
                 .switchIfEmpty(Mono.error(new ImageEventNotFoundException("Not found: " + imageEventId)))
                 .map(imageEventMapper::toModelFromEntity)
@@ -107,7 +107,7 @@ public class ImageEventRepository implements IImageEventRepository {
                     if (imageEvent.getSpecieId() == null) {
                         return Mono.just(imageEvent);
                     }
-                    return specieR2DBCRepository.findById(imageEvent.getSpecieId())
+                    return specieCacheService.findById(imageEvent.getSpecieId())
                             .switchIfEmpty(Mono.error(new SpecieNotFoundException("Not found By UUID: " + imageEvent.getSpecieId())))
                             .map(especieEntity -> {
                                 imageEvent.setScientificName(especieEntity.getScientificName());
@@ -122,11 +122,26 @@ public class ImageEventRepository implements IImageEventRepository {
         log.info("Finding image event by user id {}", userId);
         return imageEventR2DBCRepository.findByUserIdAndStatusOrderByCreatedAtDesc(userId, ImageStatus.DONE)
                 .map(imageEventMapper::toModelFromEntity)
-                .flatMap(imageEvent -> specieR2DBCRepository.findById(imageEvent.getSpecieId())
+                .flatMap(imageEvent -> specieCacheService.findById(imageEvent.getSpecieId())
                         .switchIfEmpty(Mono.error(new SpecieNotFoundException("Not found By UUID: " + imageEvent.getSpecieId())))
                         .map(especieEntity -> {
                             imageEvent.setScientificName(especieEntity.getScientificName());
                             return imageEvent;
                         }));
     }
+
+    @Override
+    public Flux<MapSighting> findDoneSightingsInBounds(BigDecimal minLat, BigDecimal maxLat, BigDecimal minLng, BigDecimal maxLng) {
+        log.info("Finding done sightings in bounds lat [{},{}] lng [{},{}]", minLat, maxLat, minLng, maxLng);
+        return imageEventR2DBCRepository.findDoneSightingsInBounds(minLat, maxLat, minLng, maxLng)
+                .map(imageEventMapper::toModelFromProjection)
+                .flatMap(mapSighting -> specieCacheService.findById(mapSighting.getSpeciesId())
+                        .switchIfEmpty(Mono.error(new SpecieNotFoundException("Not found By UUID: " + mapSighting.getSpeciesId())))
+                        .map(especieEntity -> {
+                            mapSighting.setScientificName(especieEntity.getScientificName());
+                            return mapSighting;
+                        }));
+
+    }
+
 }

@@ -41,6 +41,7 @@ public class UserController implements IUserController {
                         imageStoragePort.generatePresignedUrl(imageEvent.getS3Key(), Duration.ofMinutes(30))
                                 .map(url -> toBirdSightingResponse(imageEvent, url))
                 )
+                .log()
                 .collectList()
                 .map(sightings -> {
                     GenericResponse<List<BirdSightingResponse>> generic = GenericResponse.<List<BirdSightingResponse>>builder()
@@ -55,7 +56,7 @@ public class UserController implements IUserController {
     private BirdSightingResponse toBirdSightingResponse(ImageEvent imageEvent, String thumbnailUrl) {
         return BirdSightingResponse.builder()
                 .imageEventId(imageEvent.getId())
-                .speciesId(imageEvent.getSpecieId())
+                .specieId(imageEvent.getSpecieId())
                 .scientificName(imageEvent.getScientificName())
                 .thumbnailUrl(thumbnailUrl)
                 .status(imageEvent.getStatus())
