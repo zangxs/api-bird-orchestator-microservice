@@ -134,7 +134,14 @@ public class ImageEventRepository implements IImageEventRepository {
     public Flux<MapSighting> findDoneSightingsInBounds(BigDecimal minLat, BigDecimal maxLat, BigDecimal minLng, BigDecimal maxLng) {
         log.info("Finding done sightings in bounds lat [{},{}] lng [{},{}]", minLat, maxLat, minLng, maxLng);
         return imageEventR2DBCRepository.findDoneSightingsInBounds(minLat, maxLat, minLng, maxLng)
-                .map(imageEventMapper::toModelFromProjection);
+                .map(imageEventMapper::toModelFromProjection)
+                .flatMap(mapSighting -> specieCacheService.findById(mapSighting.getSpeciesId())
+                        .switchIfEmpty(Mono.error(new SpecieNotFoundException("Not found By UUID: " + mapSighting.getSpeciesId())))
+                        .map(especieEntity -> {
+                            mapSighting.setScientificName(especieEntity.getScientificName());
+                            return mapSighting;
+                        }));
+
     }
 
 }

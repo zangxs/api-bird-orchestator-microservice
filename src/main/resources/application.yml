@@ -11,6 +11,8 @@ spring:
     username: ${RABBITMQ_USER:user}
     password: ${RABBITMQ_PASSWORD:password}
     virtual-host: /
+  jpa:
+    show-sql: true
 server:
   port: 8081
 

@@ -15,16 +15,13 @@ public interface IImageEventR2DBCRepository extends ReactiveCrudRepository<Image
     Flux<ImageEventEntity> findByUserIdAndStatusOrderByCreatedAtDesc(UUID userId,  ImageStatus status);
 
     @Query("""
-        SELECT ie.id AS image_event_id,
+        SELECT ie.id,
                ie.user_id,
                ie.species_id,
                ie.s3_key,
-               s.common_name,
-               s.scientific_name,
                ie.latitude,
                ie.longitude
         FROM image_event ie
-        JOIN species s ON s.id = ie.species_id
         WHERE ie.status = 'DONE'
           AND ie.latitude IS NOT NULL
           AND ie.longitude IS NOT NULL

@@ -38,11 +38,9 @@ public class ImageEventMapper {
 
     public MapSighting toModelFromProjection(MapSightingProjection projection) {
         return MapSighting.builder()
-                .imageEventId(projection.getImageEventId())
+                .imageEventId(projection.getId())
                 .speciesId(projection.getSpeciesId())
                 .s3Key(projection.getS3Key())
-                .commonName(projection.getCommonName())
-                .scientificName(projection.getScientificName())
                 .latitude(projection.getLatitude())
                 .longitude(projection.getLongitude())
                 .build();

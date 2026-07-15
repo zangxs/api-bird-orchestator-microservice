@@ -41,6 +41,7 @@ public class UserController implements IUserController {
                         imageStoragePort.generatePresignedUrl(imageEvent.getS3Key(), Duration.ofMinutes(30))
                                 .map(url -> toBirdSightingResponse(imageEvent, url))
                 )
+                .log()
                 .collectList()
                 .map(sightings -> {
                     GenericResponse<List<BirdSightingResponse>> generic = GenericResponse.<List<BirdSightingResponse>>builder()
