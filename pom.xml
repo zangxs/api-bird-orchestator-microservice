@@ -59,6 +59,15 @@
       <scope>runtime</scope>
     </dependency>
 
+    <!-- Enables R2DBC connection pooling: without this on the classpath, Spring Boot builds a raw
+         (unpooled) ConnectionFactory and every repository call opens/tears down its own Postgres
+         connection. -->
+    <dependency>
+      <groupId>io.r2dbc</groupId>
+      <artifactId>r2dbc-pool</artifactId>
+      <scope>runtime</scope>
+    </dependency>
+
 
     <!-- Source: https://mvnrepository.com/artifact/io.projectreactor.rabbitmq/reactor-rabbitmq -->
     <dependency>

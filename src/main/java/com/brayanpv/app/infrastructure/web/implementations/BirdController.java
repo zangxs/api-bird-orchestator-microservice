@@ -94,7 +94,6 @@ public class BirdController implements IBirdController {
         log.info("Getting Bird Map Information");
         return birdMapInformationUseCase.execute(minLat, maxLat, minLng, maxLng)
                 .collectList()
-                .log()
                 .map(sightings -> {
                     GenericResponse<List<MapSightingResponse>> generic = GenericResponse.<List<MapSightingResponse>>builder()
                             .dateTime(LocalDateTime.now(ZoneOffset.UTC))
