@@ -5,9 +5,9 @@ import com.brayanpv.app.application.dto.response.MapSightingResponse;
 import com.brayanpv.app.application.dto.response.ImageStatusResponse;
 import com.brayanpv.app.application.dto.response.ImageUploadResponse;
 import com.brayanpv.app.application.dto.response.GenericResponse;
-import com.brayanpv.app.application.usecase.contracts.IBirdMapInformationUseCase;
-import com.brayanpv.app.application.usecase.contracts.IGetImageStatusUseCase;
-import com.brayanpv.app.application.usecase.contracts.IProcessBirdImageUseCase;
+import com.brayanpv.app.domain.usecase.contracts.IBirdMapInformationUseCase;
+import com.brayanpv.app.domain.usecase.contracts.IGetImageStatusUseCase;
+import com.brayanpv.app.domain.usecase.contracts.IProcessBirdImageUseCase;
 import com.brayanpv.app.infrastructure.web.contracts.IBirdController;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
@@ -91,7 +91,6 @@ public class BirdController implements IBirdController {
     public Mono<ResponseEntity<GenericResponse<List<MapSightingResponse>>>> getMapSightings(
             @RequestParam BigDecimal minLat, @RequestParam BigDecimal maxLat,
             @RequestParam BigDecimal minLng, @RequestParam BigDecimal maxLng) {
-        log.info("Getting Bird Map Information");
         return birdMapInformationUseCase.execute(minLat, maxLat, minLng, maxLng)
                 .collectList()
                 .map(sightings -> {

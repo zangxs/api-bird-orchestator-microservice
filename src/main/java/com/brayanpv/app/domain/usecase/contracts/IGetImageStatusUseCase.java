@@ -1,4 +1,4 @@
-package com.brayanpv.app.application.usecase.contracts;
+package com.brayanpv.app.domain.usecase.contracts;
 
 import com.brayanpv.app.application.dto.response.ImageStatusResponse;
 import reactor.core.publisher.Mono;

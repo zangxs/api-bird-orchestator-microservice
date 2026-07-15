@@ -1,7 +1,7 @@
 package com.brayanpv.app.application.usecase;
 
 import com.brayanpv.app.application.dto.response.ImageStatusResponse;
-import com.brayanpv.app.application.usecase.contracts.IGetImageStatusUseCase;
+import com.brayanpv.app.domain.usecase.contracts.IGetImageStatusUseCase;
 import com.brayanpv.app.domain.repository.IImageEventRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;

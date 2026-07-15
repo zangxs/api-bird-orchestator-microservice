@@ -1,7 +1,7 @@
 package com.brayanpv.app.application.usecase;
 
 import com.brayanpv.app.application.dto.response.MapSightingResponse;
-import com.brayanpv.app.application.usecase.contracts.IBirdMapInformationUseCase;
+import com.brayanpv.app.domain.usecase.contracts.IBirdMapInformationUseCase;
 import com.brayanpv.app.domain.repository.IImageEventRepository;
 import com.brayanpv.app.domain.storage.IImageStoragePort;
 import lombok.RequiredArgsConstructor;
