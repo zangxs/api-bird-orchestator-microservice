@@ -44,7 +44,7 @@ class GetImageStatusUseCaseTest {
         StepVerifier.create(useCase.execute(imageEventId))
                 .assertNext(response -> {
                     assertThat(response.getImageEventId()).isEqualTo(imageEventId);
-                    assertThat(response.getImageStatus()).isEqualTo(ImageStatus.DONE);
+                    assertThat(response.getStatus()).isEqualTo(ImageStatus.DONE);
                     assertThat(response.getSpecieConfidence()).isEqualByComparingTo(BigDecimal.valueOf(0.95));
                 })
                 .verifyComplete();

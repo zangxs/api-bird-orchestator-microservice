@@ -9,6 +9,9 @@ import com.brayanpv.app.application.usecase.contracts.IBirdMapInformationUseCase
 import com.brayanpv.app.application.usecase.contracts.IGetImageStatusUseCase;
 import com.brayanpv.app.application.usecase.contracts.IProcessBirdImageUseCase;
 import com.brayanpv.app.infrastructure.web.contracts.IBirdController;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.ConstraintViolationException;
+import jakarta.validation.Validator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.http.HttpStatus;
@@ -22,6 +25,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 @RestController
@@ -33,6 +37,7 @@ public class BirdController implements IBirdController {
     private final IProcessBirdImageUseCase processBirdImageUseCase;
     private final IGetImageStatusUseCase getImageStatusUseCase;
     private final IBirdMapInformationUseCase birdMapInformationUseCase;
+    private final Validator validator;
 
     @PostMapping(path = "/detect", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Override
@@ -46,6 +51,11 @@ public class BirdController implements IBirdController {
         BigDecimal longitudeDecimal =  longitude != null ? new BigDecimal(longitude) : null;
         BigDecimal latitudeDecimal =  latitude != null ? new BigDecimal(latitude) : null;
         ImageUploadRequest imageUploadRequest = new ImageUploadRequest(image, userId, longitudeDecimal, latitudeDecimal);
+
+        Set<ConstraintViolation<ImageUploadRequest>> violations = validator.validate(imageUploadRequest);
+        if (!violations.isEmpty()) {
+            throw new ConstraintViolationException(violations);
+        }
 
         return processBirdImageUseCase.execute(imageUploadRequest).flatMap(response -> {
 

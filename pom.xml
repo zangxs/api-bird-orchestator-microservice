@@ -121,6 +121,90 @@
           </excludes>
         </configuration>
       </plugin>
+
+      <!-- Coverage: instrument during `test`, enforce an 80% floor on business-logic packages during `verify`.
+           Config/wiring/DTO packages are excluded from the ratio - they're framework glue with no
+           branches worth testing and would just dilute a meaningful number with getter/setter noise. -->
+      <plugin>
+        <groupId>org.jacoco</groupId>
+        <artifactId>jacoco-maven-plugin</artifactId>
+        <version>0.8.15</version>
+        <executions>
+          <execution>
+            <id>jacoco-prepare-agent</id>
+            <goals>
+              <goal>prepare-agent</goal>
+            </goals>
+          </execution>
+          <execution>
+            <id>jacoco-report</id>
+            <phase>test</phase>
+            <goals>
+              <goal>report</goal>
+            </goals>
+          </execution>
+          <execution>
+            <id>jacoco-check</id>
+            <phase>verify</phase>
+            <goals>
+              <goal>check</goal>
+            </goals>
+            <configuration>
+              <excludes>
+                <exclude>**/Application.class</exclude>
+                <exclude>**/infrastructure/configuration/**</exclude>
+                <exclude>**/domain/model/**</exclude>
+                <exclude>**/domain/exception/**</exclude>
+                <exclude>**/application/dto/**</exclude>
+                <exclude>**/infrastructure/persistence/entity/**</exclude>
+                <exclude>**/infrastructure/persistence/projection/**</exclude>
+                <exclude>**/*Config.class</exclude>
+                <exclude>**/enums/**</exclude>
+              </excludes>
+              <rules>
+                <rule>
+                  <element>BUNDLE</element>
+                  <limits>
+                    <limit>
+                      <counter>INSTRUCTION</counter>
+                      <value>COVEREDRATIO</value>
+                      <minimum>0.80</minimum>
+                    </limit>
+                  </limits>
+                </rule>
+              </rules>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
+      <!-- OWASP Dependency-Check: fail the build on known High/Critical CVEs in third-party dependencies. -->
+      <plugin>
+        <groupId>org.owasp</groupId>
+        <artifactId>dependency-check-maven</artifactId>
+        <version>12.2.2</version>
+        <configuration>
+          <failBuildOnCVSS>7</failBuildOnCVSS>
+          <formats>
+            <format>HTML</format>
+            <format>JSON</format>
+          </formats>
+          <!-- Recommended way to pass the NVD API key in CI (see GHSA-qqhq-8r2c-c3f5) - reads it
+               from an env var instead of a -D flag, which can leak through debug logging. -->
+          <nvdApiKeyEnvironmentVariable>NVD_API_KEY</nvdApiKeyEnvironmentVariable>
+          <suppressionFiles>
+            <suppressionFile>doc/suppressions/dependency-check-suppressions.xml</suppressionFile>
+          </suppressionFiles>
+        </configuration>
+        <executions>
+          <execution>
+            <phase>verify</phase>
+            <goals>
+              <goal>check</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
     </plugins>
   </build>
 

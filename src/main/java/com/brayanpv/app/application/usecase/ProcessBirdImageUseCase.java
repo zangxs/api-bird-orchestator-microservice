@@ -36,10 +36,11 @@ public class ProcessBirdImageUseCase implements IProcessBirdImageUseCase {
     private String routingKey;
 
     private static final Duration RESULT_TIMEOUT = Duration.ofSeconds(6);
+    private static final int MAX_UPLOAD_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
 
     @Override
     public Mono<ImageUploadResponse> execute(ImageUploadRequest imageUploadRequest) {
-        log.info("Processing bird image: {}", imageUploadRequest);
+        log.info("Processing bird image for user {}", imageUploadRequest.userId());
 
         String key = buildS3Key(imageUploadRequest.userId());
 
@@ -66,7 +67,9 @@ public class ProcessBirdImageUseCase implements IProcessBirdImageUseCase {
     }
 
     private Mono<byte[]> extractBytes(FilePart filePart) {
-        return DataBufferUtils.join(filePart.content())
+        // Bounded join: aborts with DataBufferLimitException once MAX_UPLOAD_SIZE_BYTES is
+        // exceeded, instead of buffering an unbounded upload fully into memory first.
+        return DataBufferUtils.join(filePart.content(), MAX_UPLOAD_SIZE_BYTES)
                 .map(dataBuffer -> {
                     byte[] bytes = new byte[dataBuffer.readableByteCount()];
                     dataBuffer.read(bytes);
