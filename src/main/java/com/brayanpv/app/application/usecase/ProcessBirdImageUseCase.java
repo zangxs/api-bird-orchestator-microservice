@@ -5,7 +5,6 @@ import com.brayanpv.app.application.dto.response.ImageUploadResponse;
 import com.brayanpv.app.application.usecase.contracts.IProcessBirdImageUseCase;
 import com.brayanpv.app.domain.messaging.IEventPublisherPort;
 import com.brayanpv.app.domain.messaging.IImageEventResultBroker;
-import com.brayanpv.app.domain.metadata.IImageMetadataExtractor;
 import com.brayanpv.app.domain.model.BirdObserved;
 import com.brayanpv.app.domain.model.GeoLocation;
 import com.brayanpv.app.domain.model.ImageEvent;
@@ -32,7 +31,6 @@ public class ProcessBirdImageUseCase implements IProcessBirdImageUseCase {
     private final IEventPublisherPort eventPublisherPort;
     private final IImageEventRepository imageEventRepository;
     private final IImageEventResultBroker resultBroker;
-    private final IImageMetadataExtractor metadataExtractor;
 
     @Value("${rabbitmq.routing-key}")
     private String routingKey;
@@ -41,28 +39,26 @@ public class ProcessBirdImageUseCase implements IProcessBirdImageUseCase {
 
     @Override
     public Mono<ImageUploadResponse> execute(ImageUploadRequest imageUploadRequest) {
-        log.info("Processing bird image");
+        log.info("Processing bird image: {}", imageUploadRequest);
 
         String key = buildS3Key(imageUploadRequest.userId());
 
         return extractBytes(imageUploadRequest.image())
-                .flatMap(bytes -> imageStoragePort.upload(bytes, key)
-                        .then(metadataExtractor.extractGeoLocation(bytes))
-                        .defaultIfEmpty(GeoLocation.builder().build())) // sin GPS: lat/long quedan null)
-                        .flatMap(geoLocation -> saveImageEvent(imageUploadRequest, key, geoLocation))
-                        .flatMap(imageEvent ->
-                                eventPublisherPort.publish(routingKey, toBirdObserved(imageEvent)).thenReturn(imageEvent)
-                        )
-                        .flatMap(imageEvent ->
-                                resultBroker.awaitResult(imageEvent.getId(), RESULT_TIMEOUT)
-                                        .defaultIfEmpty(imageEvent) // timeout: se queda con el ImageEvent original (PROCESSING)
-                        )
-                        .map(imageEvent -> ImageUploadResponse.builder()
-                                .imageEventId(imageEvent.getId())
-                                .status(imageEvent.getStatus().name())
-                                .specieId(imageEvent.getSpecieId())
-                                .speciesConfidence(imageEvent.getSpecieConfidence())
-                                .build());
+                .flatMap(bytes -> imageStoragePort.upload(bytes, key))
+                .then(saveImageEvent(imageUploadRequest, key))
+                .flatMap(imageEvent ->
+                        eventPublisherPort.publish(routingKey, toBirdObserved(imageEvent)).thenReturn(imageEvent)
+                )
+                .flatMap(imageEvent ->
+                        resultBroker.awaitResult(imageEvent.getId(), RESULT_TIMEOUT)
+                                .defaultIfEmpty(imageEvent) // timeout: se queda con el ImageEvent original (PROCESSING)
+                )
+                .map(imageEvent -> ImageUploadResponse.builder()
+                        .imageEventId(imageEvent.getId())
+                        .status(imageEvent.getStatus().name())
+                        .specieId(imageEvent.getSpecieId())
+                        .speciesConfidence(imageEvent.getSpecieConfidence())
+                        .build());
     }
 
     private String buildS3Key(UUID userId) {
@@ -79,13 +75,13 @@ public class ProcessBirdImageUseCase implements IProcessBirdImageUseCase {
                 });
     }
 
-    private Mono<ImageEvent> saveImageEvent(ImageUploadRequest request, String key, GeoLocation geoLocation) {
+    private Mono<ImageEvent> saveImageEvent(ImageUploadRequest request, String key) {
         ImageEvent event = ImageEvent.builder()
                 .userId(request.userId())
                 .s3Key(key)
                 .status(ImageStatus.PROCESSING)
-                .latitude(geoLocation.getLatitude())
-                .longitude(geoLocation.getLongitude())
+                .latitude(request.latitude())
+                .longitude(request.longitude())
                 .build();
 
         return imageEventRepository.save(event);

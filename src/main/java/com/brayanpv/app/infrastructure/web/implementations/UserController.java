@@ -55,7 +55,7 @@ public class UserController implements IUserController {
     private BirdSightingResponse toBirdSightingResponse(ImageEvent imageEvent, String thumbnailUrl) {
         return BirdSightingResponse.builder()
                 .imageEventId(imageEvent.getId())
-                .speciesId(imageEvent.getSpecieId())
+                .specieId(imageEvent.getSpecieId())
                 .scientificName(imageEvent.getScientificName())
                 .thumbnailUrl(thumbnailUrl)
                 .status(imageEvent.getStatus())

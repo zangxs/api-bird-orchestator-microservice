@@ -64,7 +64,7 @@ public class ImageEventRepository implements IImageEventRepository {
                         entity.setFailureReason(failureReason);
                         return Mono.just(entity);
                     }
-
+                    //TODO cachear la busqueda de especies por nombre cientifico
                     return specieR2DBCRepository.findByScientificName(scientificName)
                             .switchIfEmpty(Mono.error(new SpecieNotFoundException("Not found: " + scientificName)))
                             .map(specieEntity -> {
@@ -122,7 +122,7 @@ public class ImageEventRepository implements IImageEventRepository {
         log.info("Finding image event by user id {}", userId);
         return imageEventR2DBCRepository.findByUserIdAndStatusOrderByCreatedAtDesc(userId, ImageStatus.DONE)
                 .map(imageEventMapper::toModelFromEntity)
-                .flatMap(imageEvent -> specieR2DBCRepository.findById(imageEvent.getSpecieId())
+                .flatMap(imageEvent -> specieR2DBCRepository.findById(imageEvent.getSpecieId()) //TODO cachear la busqueda por especie por id
                         .switchIfEmpty(Mono.error(new SpecieNotFoundException("Not found By UUID: " + imageEvent.getSpecieId())))
                         .map(especieEntity -> {
                             imageEvent.setScientificName(especieEntity.getScientificName());

@@ -9,10 +9,11 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestPart;
 import reactor.core.publisher.Mono;
 
+import java.math.BigDecimal;
+
 
 public interface IBirdController {
 
-    Mono<ResponseEntity<GenericResponse<ImageUploadResponse>>> detectBird(@RequestPart("image") FilePart image,
-                                                                          @RequestPart("userId") String userIdStr);
+    Mono<ResponseEntity<GenericResponse<ImageUploadResponse>>> detectBird(FilePart image, String userIdStr, String longitude, String latitude);
     Mono<ResponseEntity<GenericResponse<ImageStatusResponse>>> getImageStatus(@PathVariable("imageEventId") String imageEventId);
 }

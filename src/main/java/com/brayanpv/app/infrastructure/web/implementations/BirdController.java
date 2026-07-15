@@ -16,6 +16,7 @@ import org.springframework.http.codec.multipart.FilePart;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.UUID;
@@ -32,11 +33,15 @@ public class BirdController implements IBirdController {
     @PostMapping(path = "/detect", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Override
     public Mono<ResponseEntity<GenericResponse<ImageUploadResponse>>> detectBird(@RequestPart("image") FilePart image,
-                                                                                 @RequestPart("userId") String userIdStr) {
+                                                                                 @RequestPart("userId") String userIdStr,
+                                                                                 @RequestPart(value = "longitude", required = false) String longitude,
+                                                                                 @RequestPart(value = "latitude", required = false) String latitude) {
         log.info("Detecting Bird");
 
         UUID userId = UUID.fromString(userIdStr);
-        ImageUploadRequest imageUploadRequest = new ImageUploadRequest(image, userId);
+        BigDecimal longitudeDecimal =  longitude != null ? new BigDecimal(longitude) : null;
+        BigDecimal latitudeDecimal =  latitude != null ? new BigDecimal(latitude) : null;
+        ImageUploadRequest imageUploadRequest = new ImageUploadRequest(image, userId, longitudeDecimal, latitudeDecimal);
 
         return processBirdImageUseCase.execute(imageUploadRequest).flatMap(response -> {
 

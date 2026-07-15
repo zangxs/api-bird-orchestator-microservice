@@ -11,7 +11,7 @@ import java.util.UUID;
 @Builder
 public class BirdSightingResponse implements Serializable {
     private UUID imageEventId;
-    private UUID speciesId;
+    private UUID specieId;
     private String scientificName;
     private String commonName;
     private String thumbnailUrl; // presigned URL
