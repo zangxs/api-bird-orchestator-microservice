@@ -2,7 +2,9 @@ package com.brayanpv.app.infrastructure.mapper;
 
 import com.brayanpv.app.domain.model.BirdDetectionResult;
 import com.brayanpv.app.domain.model.ImageEvent;
+import com.brayanpv.app.domain.model.MapSighting;
 import com.brayanpv.app.infrastructure.persistence.entity.ImageEventEntity;
+import com.brayanpv.app.infrastructure.persistence.projection.MapSightingProjection;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -31,6 +33,18 @@ public class ImageEventMapper {
                 .specieConfidence(imageEventEntity.getSpeciesConfidence())
                 .specieId(imageEventEntity.getSpeciesId())
                 .failureReason(imageEventEntity.getFailureReason())
+                .build();
+    }
+
+    public MapSighting toModelFromProjection(MapSightingProjection projection) {
+        return MapSighting.builder()
+                .imageEventId(projection.getImageEventId())
+                .speciesId(projection.getSpeciesId())
+                .s3Key(projection.getS3Key())
+                .commonName(projection.getCommonName())
+                .scientificName(projection.getScientificName())
+                .latitude(projection.getLatitude())
+                .longitude(projection.getLongitude())
                 .build();
     }
 

@@ -33,6 +33,15 @@ cleanup:
   rejected-images:
     fixed-delay-ms: ${CLEANUP_REJECTED_IMAGES_FIXED_DELAY_MS:3600000}
 
+# Per-cache Caffeine specs (see CacheConfig) — a single spring.cache.caffeine.spec can't vary
+# per cache name, and the presigned-url cache needs a shorter TTL than the species cache: it must
+# stay below the presigned URL's own signature validity or it can hand out an already-expired URL.
+cache:
+  species:
+    spec: ${CACHE_SPECIES_SPEC:maximumSize=500,expireAfterWrite=30m}
+  presigned-url:
+    spec: ${CACHE_PRESIGNED_URL_SPEC:maximumSize=1000,expireAfterWrite=25m}
+
 rabbitmq:
   exchange: bird_detection.exchange
   queue: bird_detection.pending.queue

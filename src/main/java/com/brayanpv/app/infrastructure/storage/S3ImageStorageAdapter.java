@@ -3,6 +3,7 @@ package com.brayanpv.app.infrastructure.storage;
 import com.brayanpv.app.domain.storage.IImageStoragePort;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
@@ -53,6 +54,7 @@ public class S3ImageStorageAdapter implements IImageStoragePort {
     }
 
     @Override
+    @Cacheable(cacheNames = "presignedImageUrls", key = "#key + '|' + #expiration")
     public Mono<String> generatePresignedUrl(String key, Duration expiration) {
         return Mono.fromCallable(() -> {
             GetObjectRequest getObjectRequest = GetObjectRequest.builder()

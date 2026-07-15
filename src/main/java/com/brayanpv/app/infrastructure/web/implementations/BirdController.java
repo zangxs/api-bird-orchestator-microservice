@@ -1,9 +1,11 @@
 package com.brayanpv.app.infrastructure.web.implementations;
 
 import com.brayanpv.app.application.dto.request.ImageUploadRequest;
+import com.brayanpv.app.application.dto.response.MapSightingResponse;
 import com.brayanpv.app.application.dto.response.ImageStatusResponse;
 import com.brayanpv.app.application.dto.response.ImageUploadResponse;
 import com.brayanpv.app.application.dto.response.GenericResponse;
+import com.brayanpv.app.application.usecase.contracts.IBirdMapInformationUseCase;
 import com.brayanpv.app.application.usecase.contracts.IGetImageStatusUseCase;
 import com.brayanpv.app.application.usecase.contracts.IProcessBirdImageUseCase;
 import com.brayanpv.app.infrastructure.web.contracts.IBirdController;
@@ -19,6 +21,7 @@ import reactor.core.publisher.Mono;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -29,6 +32,7 @@ public class BirdController implements IBirdController {
 
     private final IProcessBirdImageUseCase processBirdImageUseCase;
     private final IGetImageStatusUseCase getImageStatusUseCase;
+    private final IBirdMapInformationUseCase birdMapInformationUseCase;
 
     @PostMapping(path = "/detect", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Override
@@ -70,6 +74,24 @@ public class BirdController implements IBirdController {
             return Mono.just(genericResponse);
         });
 
+    }
+
+    @Override
+    @GetMapping("/map")
+    public Mono<ResponseEntity<GenericResponse<List<MapSightingResponse>>>> getMapSightings(
+            @RequestParam BigDecimal minLat, @RequestParam BigDecimal maxLat,
+            @RequestParam BigDecimal minLng, @RequestParam BigDecimal maxLng) {
+        log.info("Getting Bird Map Information");
+        return birdMapInformationUseCase.execute(minLat, maxLat, minLng, maxLng)
+                .collectList()
+                .map(sightings -> {
+                    GenericResponse<List<MapSightingResponse>> generic = GenericResponse.<List<MapSightingResponse>>builder()
+                            .dateTime(LocalDateTime.now(ZoneOffset.UTC))
+                            .code(HttpStatus.OK.value())
+                            .data(sightings)
+                            .build();
+                    return ResponseEntity.ok(generic);
+                });
     }
 
 

@@ -76,6 +76,18 @@
       <scope>compile</scope>
     </dependency>
 
+    <!-- Cache abstraction (@Cacheable) for species lookups -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-cache</artifactId>
+    </dependency>
+
+    <!-- Caffeine as the cache provider behind spring-boot-starter-cache -->
+    <dependency>
+      <groupId>com.github.ben-manes.caffeine</groupId>
+      <artifactId>caffeine</artifactId>
+    </dependency>
+
     <!-- Test -->
     <dependency>
       <groupId>org.springframework.boot</groupId>

@@ -1,19 +1,23 @@
 package com.brayanpv.app.infrastructure.web.contracts;
 
+import com.brayanpv.app.application.dto.response.MapSightingResponse;
 import com.brayanpv.app.application.dto.response.ImageStatusResponse;
 import com.brayanpv.app.application.dto.response.ImageUploadResponse;
 import com.brayanpv.app.application.dto.response.GenericResponse;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.codec.multipart.FilePart;
 import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestPart;
 import reactor.core.publisher.Mono;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 
 public interface IBirdController {
 
     Mono<ResponseEntity<GenericResponse<ImageUploadResponse>>> detectBird(FilePart image, String userIdStr, String longitude, String latitude);
+
     Mono<ResponseEntity<GenericResponse<ImageStatusResponse>>> getImageStatus(@PathVariable("imageEventId") String imageEventId);
+
+    Mono<ResponseEntity<GenericResponse<List<MapSightingResponse>>>> getMapSightings(BigDecimal minLat, BigDecimal maxLat, BigDecimal minLng, BigDecimal maxLng);
 }

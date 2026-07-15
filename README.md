@@ -12,9 +12,33 @@ Domain (pure Java) → Application (services / use cases) → Infrastructure (ad
 
 - **Domain**: Pure Java entities, enums, ports (repository, storage, messaging, result broker), use-case contracts, exceptions
 - **Application**: DTOs (records), the original service contract/implementation (`IBirdService`/`BirdService`, inbound HTTP flow), and use cases for inbound RabbitMQ event handling (`ProcessDetectionResultUseCase`, `ProcessClassificationResultUseCase`, `CleanupRejectedImagesUseCase`)
-- **Infrastructure**: Controllers, R2DBC adapters, S3 adapter, RabbitMQ producer/consumers, in-memory result broker, scheduler, config
+- **Infrastructure**: Controllers, R2DBC adapters, S3 adapter, RabbitMQ producer/consumers, in-memory result broker, scheduler, config, species cache
 
 All service/controller/port methods return `Mono<T>` or `Flux<T>`.
+
+### Caching
+
+Spring's `@Cacheable` (Caffeine provider, `@EnableCaching` on `Application`) backs two independent
+caches, each on its own bean so calls always go through the Spring proxy:
+
+- **Species lookups** (`speciesByScientificName`, `speciesById`) — `species` is small, rarely-changing
+  reference data seeded via `db/` SQL. `SpecieCacheService`
+  (`infrastructure/persistence/cache/SpecieCacheService.java`) wraps
+  `ISpecieR2DBCRepository.findByScientificName`/`findById`; `ImageEventRepository` depends on it
+  instead of the raw R2DBC repository.
+- **Presigned S3 URLs** (`presignedImageUrls`) — `S3ImageStorageAdapter.generatePresignedUrl` is
+  cached directly (keyed on S3 key + requested duration), so repeated thumbnail requests for the same
+  photo (map pins, sighting lists) skip both the DB-adjacent blocking `S3Presigner` call and the
+  `boundedElastic` thread hop.
+
+Both are sized/expired via per-cache Caffeine specs built in
+`infrastructure/configuration/CacheConfig.java` (not Spring Boot's `spring.cache.caffeine.spec`
+autoconfiguration, which can only apply one spec to every cache name): `cache.species.spec` (default
+`maximumSize=500,expireAfterWrite=30m`, override `CACHE_SPECIES_SPEC`) and `cache.presigned-url.spec`
+(default `maximumSize=1000,expireAfterWrite=25m`, override `CACHE_PRESIGNED_URL_SPEC`). The
+presigned-url TTL is intentionally shorter than the 30-minute duration callers request — otherwise a
+cached entry could be served after its embedded S3 signature already expired. Neither cache has active
+invalidation; both rely purely on TTL expiry.
 
 ## Message Flow
 
@@ -71,6 +95,8 @@ RABBITMQ_PASSWORD=password
 
 # Optional
 CLEANUP_REJECTED_IMAGES_FIXED_DELAY_MS=3600000   # rejected-image cleanup interval, default 1h
+CACHE_SPECIES_SPEC=maximumSize=500,expireAfterWrite=30m         # Caffeine spec for the species lookup caches
+CACHE_PRESIGNED_URL_SPEC=maximumSize=1000,expireAfterWrite=25m  # Caffeine spec for the presigned-S3-URL cache
 ```
 
 ### Run Locally
@@ -170,7 +196,7 @@ src/main/java/com/brayanpv/app/
 │   ├── storage/S3ImageStorageAdapter.java
 │   ├── persistence/
 │   │   ├── adapter/ImageEventRepository.java
-│   │   ├── adapter/SpecieRepository.java
+│   │   ├── cache/SpecieCacheService.java
 │   │   ├── repository/IImageEventR2DBCRepository.java
 │   │   ├── repository/ISpecieR2DBCRepository.java
 │   │   ├── entity/ImageEventEntity.java
@@ -184,7 +210,8 @@ src/main/java/com/brayanpv/app/
 │   ├── configuration/
 │   │   ├── RabbitMQConfig.java
 │   │   ├── RabbitTopologyInitializer.java
-│   │   └── S3ConnectionConfiguration.java
+│   │   ├── S3ConnectionConfiguration.java
+│   │   └── CacheConfig.java
 │   ├── handle/GlobalExceptionHandler.java
 │   └── mapper/ImageEventMapper.java
 └── test/
@@ -201,6 +228,7 @@ src/main/java/com/brayanpv/app/
 - `management.endpoints.web.exposure.include: health,info`
 - `aws.s3` — bucket, credentials via env vars
 - `cleanup.rejected-images.fixed-delay-ms` — interval for `RejectedImageCleanupScheduler`
+- `cache.species.spec` / `cache.presigned-url.spec` — size/TTL for the species and presigned-S3-URL caches, wired up by `CacheConfig`
 - `rabbitmq.*` — exchange, queues, routing keys, all bound in `RabbitMQConfig.java` against exchange `bird_detection.exchange`:
 
 | Key | Value |
@@ -214,7 +242,8 @@ src/main/java/com/brayanpv/app/
 ## Known Gaps / TODO
 
 - [ ] Classification microservice's `classificate_bird()` is still a stub — no model inference wired up yet on the Python side
-- [ ] `SpecieRepository.findByScientificName()` is unimplemented (returns `null`, not `Mono.empty()`)
+- [ ] Species cache (`SpecieCacheService`) has no active invalidation — relies purely on a 30-minute TTL, so an in-place edit to a `species` row can be served stale for up to that long
+- [ ] Presigned-URL cache assumes every caller requests roughly the same ~30 min duration for a given S3 key; a call site requesting a much shorter duration for the same key could receive an already-expired cached URL
 - [ ] `IImageEventResultBroker` is in-memory only (`ConcurrentHashMap` + `Sinks.One`) — won't coordinate correctly if the orchestrator is horizontally scaled
 - [ ] No consumer for `bird_classification.manual.queue` in this repo (presumably a manual-review tool elsewhere)
 - [ ] Integration tests with Testcontainers (PostgreSQL, RabbitMQ, MinIO) — none yet, `pom.xml` has no Testcontainers dependency
@@ -229,6 +258,7 @@ src/main/java/com/brayanpv/app/
 - **Database**: PostgreSQL + R2DBC
 - **Messaging**: RabbitMQ + reactor-rabbitmq
 - **Storage**: AWS S3 SDK v2 (async)
+- **Caching**: Spring Cache abstraction + Caffeine (species lookups)
 - **Build**: Maven
 - **Testing**: JUnit 5, Reactor Test, Mockito
 - **Observability**: Spring Boot Actuator
