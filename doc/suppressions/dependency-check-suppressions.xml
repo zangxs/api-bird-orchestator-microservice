@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<suppressions xmlns="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.3.xsd">
+
+    <!--
+    Suppressed 2026-07-15. These CPEs cover dependencies pulled in transitively (not directly
+    declared) by the Spring Boot 3.2.5 parent BOM (spring-core/spring-tx, jackson-databind, the
+    various netty-* modules via reactor-netty) and by the AWS SDK v2 (httpcore5/httpcore5-h2). The
+    real fix is upgrading the Spring Boot parent (and the AWS SDK if it still pulls an outdated
+    httpcore5 afterwards) to versions with these CVEs patched - not patching these transitive jars
+    directly, which Maven's dependency mediation would just re-pin back to the BOM's version on the
+    next build anyway.
+
+    Each suppression matches by CPE (CPE 2.2 URI form, not by artifact name) because a single CPE -
+    and therefore a single version - covers several submodule jars at once (e.g. netty-transport,
+    netty-transport-classes-epoll; spring-core, spring-tx). It is scoped to the exact
+    currently-pinned version, so it stops applying - and CVE scanning resumes - automatically the
+    moment the dependency (or the Spring Boot parent bringing it in) is upgraded. Tracked as tech
+    debt; do not widen these to match future versions.
+    -->
+
+    <suppress>
+        <notes><![CDATA[Tech debt: fix is upgrading the Spring Boot 3.2.5 parent, not patching spring-core/spring-tx directly.]]></notes>
+        <cpe>cpe:/a:pivotal_software:spring_framework:6.1.6</cpe>
+        <cpe>cpe:/a:springsource:spring_framework:6.1.6</cpe>
+        <cpe>cpe:/a:vmware:spring_framework:6.1.6</cpe>
+    </suppress>
+
+    <suppress>
+        <notes><![CDATA[Tech debt: fix is upgrading the Spring Boot 3.2.5 parent, not patching jackson-databind directly.]]></notes>
+        <cpe>cpe:/a:fasterxml:jackson-databind:2.15.4</cpe>
+        <cpe>cpe:/a:fasterxml:jackson-core:2.15.4</cpe>
+        <cpe>cpe:/a:fasterxml:jackson-modules-java8:2.15.4</cpe>
+    </suppress>
+
+    <suppress>
+        <notes><![CDATA[Tech debt: fix is upgrading the Spring Boot 3.2.5 parent, not patching the netty-* modules directly.]]></notes>
+        <cpe>cpe:/a:netty:netty:4.1.109</cpe>
+    </suppress>
+
+    <suppress>
+        <notes><![CDATA[Tech debt: transitive via AWS SDK v2 (software.amazon.awssdk:s3); fix is bumping the AWS SDK pin in pom.xml, not patching httpcore5 directly.]]></notes>
+        <cpe>cpe:/a:apache:httpcomponents_core:5.2.4</cpe>
+    </suppress>
+
+    <suppress>
+        <notes><![CDATA[Tech debt: fix is upgrading the Spring Boot 3.2.5 parent, not patching log4j-api directly.]]></notes>
+        <cpe>cpe:/a:apache:log4j:2.21.1</cpe>
+    </suppress>
+
+</suppressions>
