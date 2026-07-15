@@ -2,9 +2,9 @@ package com.brayanpv.app.infrastructure.web.implementations;
 
 import com.brayanpv.app.application.dto.response.GenericResponse;
 import com.brayanpv.app.application.dto.response.ImageUploadResponse;
-import com.brayanpv.app.application.usecase.contracts.IBirdMapInformationUseCase;
-import com.brayanpv.app.application.usecase.contracts.IGetImageStatusUseCase;
-import com.brayanpv.app.application.usecase.contracts.IProcessBirdImageUseCase;
+import com.brayanpv.app.domain.usecase.contracts.IBirdMapInformationUseCase;
+import com.brayanpv.app.domain.usecase.contracts.IGetImageStatusUseCase;
+import com.brayanpv.app.domain.usecase.contracts.IProcessBirdImageUseCase;
 import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;

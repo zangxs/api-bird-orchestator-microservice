@@ -8,6 +8,7 @@ import com.brayanpv.app.domain.model.enums.ImageStatus;
 import com.brayanpv.app.domain.repository.IImageEventRepository;
 import com.brayanpv.app.infrastructure.mapper.ImageEventMapper;
 import com.brayanpv.app.infrastructure.persistence.cache.SpecieCacheService;
+import com.brayanpv.app.infrastructure.persistence.entity.SpecieEntity;
 import com.brayanpv.app.infrastructure.persistence.repository.IImageEventR2DBCRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
@@ -16,6 +17,8 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.math.BigDecimal;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Repository
@@ -122,12 +125,13 @@ public class ImageEventRepository implements IImageEventRepository {
         log.info("Finding image event by user id {}", userId);
         return imageEventR2DBCRepository.findByUserIdAndStatusOrderByCreatedAtDesc(userId, ImageStatus.DONE)
                 .map(imageEventMapper::toModelFromEntity)
-                .flatMap(imageEvent -> specieCacheService.findById(imageEvent.getSpecieId())
-                        .switchIfEmpty(Mono.error(new SpecieNotFoundException("Not found By UUID: " + imageEvent.getSpecieId())))
-                        .map(especieEntity -> {
-                            imageEvent.setScientificName(especieEntity.getScientificName());
-                            return imageEvent;
-                        }));
+                .collectList()
+                .flatMapMany(imageEvents -> {
+                    List<UUID> specieIds = imageEvents.stream().map(ImageEvent::getSpecieId).toList();
+                    return specieCacheService.findAllByIds(specieIds)
+                            .flatMapMany(speciesById -> Flux.fromIterable(imageEvents)
+                                    .map(imageEvent -> enrichWithScientificName(imageEvent, speciesById)));
+                });
     }
 
     @Override
@@ -135,13 +139,31 @@ public class ImageEventRepository implements IImageEventRepository {
         log.info("Finding done sightings in bounds lat [{},{}] lng [{},{}]", minLat, maxLat, minLng, maxLng);
         return imageEventR2DBCRepository.findDoneSightingsInBounds(minLat, maxLat, minLng, maxLng)
                 .map(imageEventMapper::toModelFromProjection)
-                .flatMap(mapSighting -> specieCacheService.findById(mapSighting.getSpeciesId())
-                        .switchIfEmpty(Mono.error(new SpecieNotFoundException("Not found By UUID: " + mapSighting.getSpeciesId())))
-                        .map(especieEntity -> {
-                            mapSighting.setScientificName(especieEntity.getScientificName());
-                            return mapSighting;
-                        }));
+                .collectList()
+                .flatMapMany(sightings -> {
+                    List<UUID> specieIds = sightings.stream().map(MapSighting::getSpeciesId).toList();
+                    return specieCacheService.findAllByIds(specieIds)
+                            .flatMapMany(speciesById -> Flux.fromIterable(sightings)
+                                    .map(sighting -> enrichWithScientificName(sighting, speciesById)));
+                });
+    }
 
+    private ImageEvent enrichWithScientificName(ImageEvent imageEvent, Map<UUID, SpecieEntity> speciesById) {
+        SpecieEntity specie = speciesById.get(imageEvent.getSpecieId());
+        if (specie == null) {
+            throw new SpecieNotFoundException("Not found By UUID: " + imageEvent.getSpecieId());
+        }
+        imageEvent.setScientificName(specie.getScientificName());
+        return imageEvent;
+    }
+
+    private MapSighting enrichWithScientificName(MapSighting sighting, Map<UUID, SpecieEntity> speciesById) {
+        SpecieEntity specie = speciesById.get(sighting.getSpeciesId());
+        if (specie == null) {
+            throw new SpecieNotFoundException("Not found By UUID: " + sighting.getSpeciesId());
+        }
+        sighting.setScientificName(specie.getScientificName());
+        return sighting;
     }
 
 }

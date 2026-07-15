@@ -21,6 +21,8 @@ import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
 import java.math.BigDecimal;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -264,7 +266,7 @@ class ImageEventRepositoryTest {
                 .thenReturn(Flux.just(entity));
         when(imageEventMapper.toModelFromEntity(entity))
                 .thenReturn(ImageEvent.builder().id(entity.getId()).specieId(specieId).status(ImageStatus.DONE).build());
-        when(specieCacheService.findById(specieId)).thenReturn(Mono.just(specie));
+        when(specieCacheService.findAllByIds(List.of(specieId))).thenReturn(Mono.just(Map.of(specieId, specie)));
 
         StepVerifier.create(repository.findByUserId(userId))
                 .assertNext(event -> assertThat(event.getScientificName()).isEqualTo("Passer domesticus"))
@@ -290,7 +292,7 @@ class ImageEventRepositoryTest {
         when(imageEventR2DBCRepository.findDoneSightingsInBounds(minLat, maxLat, minLng, maxLng))
                 .thenReturn(Flux.just(projection));
         when(imageEventMapper.toModelFromProjection(projection)).thenReturn(mapped);
-        when(specieCacheService.findById(specieId)).thenReturn(Mono.just(specie));
+        when(specieCacheService.findAllByIds(List.of(specieId))).thenReturn(Mono.just(Map.of(specieId, specie)));
 
         StepVerifier.create(repository.findDoneSightingsInBounds(minLat, maxLat, minLng, maxLng))
                 .assertNext(sighting -> assertThat(sighting.getScientificName()).isEqualTo("Cyanocitta cristata"))
@@ -315,7 +317,7 @@ class ImageEventRepositoryTest {
         when(imageEventR2DBCRepository.findDoneSightingsInBounds(minLat, maxLat, minLng, maxLng))
                 .thenReturn(Flux.just(projection));
         when(imageEventMapper.toModelFromProjection(projection)).thenReturn(mapped);
-        when(specieCacheService.findById(specieId)).thenReturn(Mono.empty());
+        when(specieCacheService.findAllByIds(List.of(specieId))).thenReturn(Mono.just(Map.of()));
 
         StepVerifier.create(repository.findDoneSightingsInBounds(minLat, maxLat, minLng, maxLng))
                 .expectError(SpecieNotFoundException.class)

@@ -2,7 +2,7 @@ package com.brayanpv.app.infrastructure.web.implementations;
 
 import com.brayanpv.app.application.dto.response.BirdSightingResponse;
 import com.brayanpv.app.application.dto.response.GenericResponse;
-import com.brayanpv.app.application.usecase.contracts.IGetImageEventUseCase;
+import com.brayanpv.app.domain.usecase.contracts.IGetImageEventUseCase;
 import com.brayanpv.app.domain.model.ImageEvent;
 import com.brayanpv.app.domain.storage.IImageStoragePort;
 import com.brayanpv.app.infrastructure.web.contracts.IUserController;
@@ -41,7 +41,6 @@ public class UserController implements IUserController {
                         imageStoragePort.generatePresignedUrl(imageEvent.getS3Key(), Duration.ofMinutes(30))
                                 .map(url -> toBirdSightingResponse(imageEvent, url))
                 )
-                .log()
                 .collectList()
                 .map(sightings -> {
                     GenericResponse<List<BirdSightingResponse>> generic = GenericResponse.<List<BirdSightingResponse>>builder()

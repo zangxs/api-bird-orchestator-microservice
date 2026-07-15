@@ -1,6 +1,6 @@
 package com.brayanpv.app.application.usecase;
 
-import com.brayanpv.app.application.usecase.contracts.IGetImageEventUseCase;
+import com.brayanpv.app.domain.usecase.contracts.IGetImageEventUseCase;
 import com.brayanpv.app.domain.model.ImageEvent;
 import com.brayanpv.app.domain.repository.IImageEventRepository;
 import lombok.RequiredArgsConstructor;

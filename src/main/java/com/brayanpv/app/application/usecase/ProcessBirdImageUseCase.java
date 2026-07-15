@@ -2,11 +2,10 @@ package com.brayanpv.app.application.usecase;
 
 import com.brayanpv.app.application.dto.request.ImageUploadRequest;
 import com.brayanpv.app.application.dto.response.ImageUploadResponse;
-import com.brayanpv.app.application.usecase.contracts.IProcessBirdImageUseCase;
+import com.brayanpv.app.domain.usecase.contracts.IProcessBirdImageUseCase;
 import com.brayanpv.app.domain.messaging.IEventPublisherPort;
 import com.brayanpv.app.domain.messaging.IImageEventResultBroker;
 import com.brayanpv.app.domain.model.BirdObserved;
-import com.brayanpv.app.domain.model.GeoLocation;
 import com.brayanpv.app.domain.model.ImageEvent;
 import com.brayanpv.app.domain.model.enums.ImageStatus;
 import com.brayanpv.app.domain.repository.IImageEventRepository;

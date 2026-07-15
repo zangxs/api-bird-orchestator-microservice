@@ -1,4 +1,4 @@
-package com.brayanpv.app.application.usecase.contracts;
+package com.brayanpv.app.domain.usecase.contracts;
 
 import com.brayanpv.app.domain.model.ImageEvent;
 import reactor.core.publisher.Flux;

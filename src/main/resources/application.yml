@@ -5,14 +5,19 @@ spring:
     url: r2dbc:postgresql://${DB_BIRD_DEX_HOST:localhost}:${DB_BIRD_DEX_PORT:5432}/${DB_BIRD_DEX_NAME:bird_dex}
     username: ${DB_BIRD_DEX_USER:bird_user}
     password: ${DB_BIRD_DEX_PASSWORD:bird_password}
+    # With io.r2dbc:r2dbc-pool on the classpath, Spring Boot auto-wraps the ConnectionFactory in a
+    # pool - without it, every repository call opened/closed its own Postgres connection.
+    pool:
+      enabled: true
+      initial-size: ${DB_R2DBC_POOL_INITIAL_SIZE:5}
+      max-size: ${DB_R2DBC_POOL_MAX_SIZE:20}
+      max-idle-time: ${DB_R2DBC_POOL_MAX_IDLE_TIME:30m}
   rabbitmq:
     host: ${RABBITMQ_HOST:localhost}
     port: ${RABBITMQ_PORT:5672}
     username: ${RABBITMQ_USER:user}
     password: ${RABBITMQ_PASSWORD:password}
     virtual-host: /
-  jpa:
-    show-sql: true
 server:
   port: 8081
 
