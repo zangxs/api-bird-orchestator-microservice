@@ -28,3 +28,5 @@ target/
 
 AGENTS.md
 instruct.md
+
+.env

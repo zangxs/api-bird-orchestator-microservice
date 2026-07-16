@@ -113,6 +113,24 @@ mvn spring-boot:run
 # App runs on http://localhost:8081
 ```
 
+### Run with Docker
+
+`docker-compose.yml` in this repo brings up all five pieces of the pipeline — this service,
+`detection`, `classification`, `postgres`, and `rabbitmq` — as separate containers. `detection` and
+`classification` build from their own sibling repos (`../api-bird-detection-microservice`,
+`../api-bird-classification-microservice`) rather than being bundled into this image, so the three
+repos need to be checked out side by side (the `bird-dex` workspace layout) for it to work:
+
+```bash
+# from inside api-bird-orchestator-microservice/
+cp .env.example .env               # fill in AWS_S3_* credentials
+# download the detection + classification .pkl models — see DOCKER.md §1 for links/checksums
+docker compose up --build
+```
+
+Full instructions (model downloads with checksums, secrets, port table, health checks, known
+limitations) are in [`DOCKER.md`](DOCKER.md).
+
 ### Build & Test
 ```bash
 mvn compile           # Compile only
@@ -333,7 +351,6 @@ src/main/java/com/brayanpv/app/
 - [ ] `IImageEventResultBroker` is in-memory only (`ConcurrentHashMap` + `Sinks.One`) — won't coordinate correctly if the orchestrator is horizontally scaled
 - [ ] No consumer for `bird_classification.manual.queue` in this repo (presumably a manual-review tool elsewhere)
 - [ ] No integration tests with Testcontainers (PostgreSQL, RabbitMQ, MinIO) — none yet, `pom.xml` has no Testcontainers dependency
-- [ ] No `docker-compose.yml` for local dependencies
 
 ## Tech Stack
 
