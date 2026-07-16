@@ -1,0 +1,11 @@
+target/
+.idea/
+.git/
+.github/
+*.log
+doc/
+instruct.md
+README.md
+AGENTS.md
+CLAUDE.md
+LICENSE

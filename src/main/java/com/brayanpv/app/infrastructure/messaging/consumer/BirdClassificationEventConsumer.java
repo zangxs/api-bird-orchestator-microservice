@@ -21,20 +21,24 @@ public class BirdClassificationEventConsumer {
     private final IProcessClassificationResultUseCase processClassificationResultUseCase;
     private final Receiver receiver;
     private final ObjectMapper objectMapper;
+    private final Mono<Void> topology;
 
     @Value("${rabbitmq.classification-result-queue}")
     private String classificationResultQueueName;
 
     @PostConstruct
     public void start() {
-        receiver.consumeAutoAck(classificationResultQueueName)
-                .flatMap(delivery -> deserialize(delivery.getBody())
-                        .flatMap(processClassificationResultUseCase::execute)
-                        .onErrorResume(e -> {
-                            log.error("Failed to process classification result", e);
-                            return Mono.empty();
-                        }))
-                .subscribe();
+        topology.thenMany(receiver.consumeAutoAck(classificationResultQueueName)
+                        .flatMap(delivery -> deserialize(delivery.getBody())
+                                .flatMap(processClassificationResultUseCase::execute)
+                                .onErrorResume(e -> {
+                                    log.error("Failed to process classification result", e);
+                                    return Mono.empty();
+                                })))
+                .subscribe(
+                        unused -> {},
+                        error -> log.error("Classification result consumer terminated unexpectedly", error)
+                );
     }
 
     private Mono<BirdClassificationResult> deserialize(byte[] body) {

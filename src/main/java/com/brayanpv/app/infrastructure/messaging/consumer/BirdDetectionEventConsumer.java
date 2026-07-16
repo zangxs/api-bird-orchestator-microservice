@@ -24,6 +24,7 @@ public class BirdDetectionEventConsumer {
     private final IProcessDetectionResultUseCase processDetectionResultUseCase;
     private final Receiver receiver;
     private final ObjectMapper objectMapper;
+    private final Mono<Void> topology;
 
 
     @Value("${rabbitmq.result-queue}")
@@ -32,14 +33,17 @@ public class BirdDetectionEventConsumer {
 
     @PostConstruct
     public void start() {
-        receiver.consumeAutoAck(resultQueueName)
-                .flatMap(delivery -> deserialize(delivery.getBody())
-                        .flatMap(processDetectionResultUseCase::execute)
-                        .onErrorResume(e -> {
-                            log.error("Failed to process detection result", e);
-                            return Mono.empty();
-                        }))
-                .subscribe();
+        topology.thenMany(receiver.consumeAutoAck(resultQueueName)
+                        .flatMap(delivery -> deserialize(delivery.getBody())
+                                .flatMap(processDetectionResultUseCase::execute)
+                                .onErrorResume(e -> {
+                                    log.error("Failed to process detection result", e);
+                                    return Mono.empty();
+                                })))
+                .subscribe(
+                        unused -> {},
+                        error -> log.error("Detection result consumer terminated unexpectedly", error)
+                );
     }
 
     private Mono<BirdDetectionResult> deserialize(byte[] body) {

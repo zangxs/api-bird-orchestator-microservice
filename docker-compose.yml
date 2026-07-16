@@ -1,0 +1,120 @@
+name: bird-dex
+
+# Lives in api-bird-orchestator-microservice/ and dockerizes all three backend microservices plus
+# their Postgres and RabbitMQ dependencies. `detection` and `classification` build from their own
+# sibling repos (../api-bird-detection-microservice, ../api-bird-classification-microservice) — they
+# run as separate containers from separate images, never bundled into the orchestrator's image.
+# This means the three repos must be checked out side by side under the same parent directory (the
+# bird-dex workspace layout) for the relative build paths below to resolve. S3 stays external/real
+# AWS — there's no local MinIO here. See DOCKER.md for full setup instructions (model files, .env,
+# first-run notes).
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-bird_dex}
+      POSTGRES_USER: ${POSTGRES_USER:-bird_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-bird_password}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./scripts/00_extensions.sql:/docker-entrypoint-initdb.d/00_extensions.sql:ro
+      - ./scripts/01_ddl.sql:/docker-entrypoint-initdb.d/01_ddl.sql:ro
+      - ./scripts/seed_species_col_500.sql:/docker-entrypoint-initdb.d/02_seed_species.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-bird_user} -d ${POSTGRES_DB:-bird_dex}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks: [bird-dex-net]
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-user}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-password}
+    ports:
+      - "5672:5672"    # AMQP
+      - "15672:15672"  # management UI
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks: [bird-dex-net]
+
+  orchestrator:
+    build: .
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      DB_BIRD_DEX_HOST: postgres
+      DB_BIRD_DEX_PORT: "5432"
+      DB_BIRD_DEX_NAME: ${POSTGRES_DB:-bird_dex}
+      DB_BIRD_DEX_USER: ${POSTGRES_USER:-bird_user}
+      DB_BIRD_DEX_PASSWORD: ${POSTGRES_PASSWORD:-bird_password}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: "5672"
+      RABBITMQ_USER: ${RABBITMQ_USER:-user}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-password}
+      AWS_S3_BUCKET_NAME: ${AWS_S3_BUCKET_NAME:?set AWS_S3_BUCKET_NAME in .env}
+      AWS_S3_ACCESS_KEY: ${AWS_S3_ACCESS_KEY:?set AWS_S3_ACCESS_KEY in .env}
+      AWS_S3_SECRET_KEY: ${AWS_S3_SECRET_KEY:?set AWS_S3_SECRET_KEY in .env}
+    ports:
+      - "8081:8081"
+    networks: [bird-dex-net]
+
+  detection:
+    build: ../api-bird-detection-microservice
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-user}:${RABBITMQ_PASSWORD:-password}@rabbitmq:5672/
+      QUEUE_DETECT_NAME: bird_detection.pending.queue
+      RESULT_QUEUE_NAME: bird_detection.resultado.queue
+      EXCHANGE_NAME: bird_detection.exchange
+      RESULT_ROUTING_KEY: bird_detection.result
+      AWS_ACCESS_KEY_ID: ${AWS_S3_ACCESS_KEY:?set AWS_S3_ACCESS_KEY in .env}
+      AWS_SECRET_ACCESS_KEY: ${AWS_S3_SECRET_KEY:?set AWS_S3_SECRET_KEY in .env}
+      S3_BUCKET: ${AWS_S3_BUCKET_NAME:?set AWS_S3_BUCKET_NAME in .env}
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+    volumes:
+      - ../api-bird-detection-microservice/app/ml:/app/app/ml:ro
+    ports:
+      - "8000:8000"
+    networks: [bird-dex-net]
+
+  classification:
+    build: ../api-bird-classification-microservice
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-user}:${RABBITMQ_PASSWORD:-password}@rabbitmq:5672/
+      QUEUE_CLASSIFICATION_NAME: bird_classification.queue
+      EXCHANGE_NAME: bird_detection.exchange
+      RESULT_ROUTING_KEY: bird_classification.result
+      AWS_ACCESS_KEY_ID: ${AWS_S3_ACCESS_KEY:?set AWS_S3_ACCESS_KEY in .env}
+      AWS_SECRET_ACCESS_KEY: ${AWS_S3_SECRET_KEY:?set AWS_S3_SECRET_KEY in .env}
+      S3_BUCKET: ${AWS_S3_BUCKET_NAME:?set AWS_S3_BUCKET_NAME in .env}
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+    volumes:
+      - ../api-bird-classification-microservice/app/ml:/app/app/ml:ro
+    networks: [bird-dex-net]
+    # consumer-only, no HTTP port to publish
+
+networks:
+  bird-dex-net:
+    driver: bridge
+
+volumes:
+  pgdata:
+  rabbitmq-data:

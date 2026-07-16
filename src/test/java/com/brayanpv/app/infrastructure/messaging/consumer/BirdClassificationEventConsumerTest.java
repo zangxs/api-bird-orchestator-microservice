@@ -39,7 +39,7 @@ class BirdClassificationEventConsumerTest {
 
     @BeforeEach
     void setUp() {
-        consumer = new BirdClassificationEventConsumer(processClassificationResultUseCase, receiver, objectMapper);
+        consumer = new BirdClassificationEventConsumer(processClassificationResultUseCase, receiver, objectMapper, Mono.empty());
         ReflectionTestUtils.setField(consumer, "classificationResultQueueName", QUEUE);
     }
 
