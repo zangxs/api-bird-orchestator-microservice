@@ -117,19 +117,62 @@ mvn spring-boot:run
 
 `docker-compose.yml` in this repo brings up all five pieces of the pipeline — this service,
 `detection`, `classification`, `postgres`, and `rabbitmq` — as separate containers. `detection` and
-`classification` build from their own sibling repos (`../api-bird-detection-microservice`,
-`../api-bird-classification-microservice`) rather than being bundled into this image, so the three
-repos need to be checked out side by side (the `bird-dex` workspace layout) for it to work:
+`classification` build from their own sibling repos rather than being bundled into this image, so
+you need all three repos checked out side by side:
 
-```bash
-# from inside api-bird-orchestator-microservice/
-cp .env.example .env               # fill in AWS_S3_* credentials
-# download the detection + classification .pkl models — see DOCKER.md §1 for links/checksums
-docker compose up --build
+```
+bird-dex/
+├── api-bird-orchestator-microservice/    # docker-compose.yml lives here — run every command from here
+├── api-bird-detection-microservice/
+└── api-bird-classification-microservice/
 ```
 
-Full instructions (model downloads with checksums, secrets, port table, health checks, known
-limitations) are in [`DOCKER.md`](DOCKER.md).
+**1. Clone the sibling repos** (skip any you already have checked out):
+```bash
+cd ..   # to the bird-dex workspace root, one level above this repo
+git clone https://github.com/zangxs/api-bird-detection-microservice.git
+git clone https://github.com/zangxs/api-bird-classification-microservice.git
+cd api-bird-orchestator-microservice
+```
+
+**2. Download the ML model files.** They're gitignored/too large for the repos — `docker-compose.yml`
+bind-mounts them in from the paths below. Without them the corresponding container fails on startup:
+```bash
+mkdir -p ../api-bird-detection-microservice/app/ml
+curl -L -o ../api-bird-detection-microservice/app/ml/bird_model_latest.pkl \
+  https://huggingface.co/brayanspv/bird_detection_brayanpv/resolve/main/bird_model_latest.pkl
+
+mkdir -p ../api-bird-classification-microservice/app/ml
+curl -L -o ../api-bird-classification-microservice/app/ml/bird_species_classifier_latest.pkl \
+  https://huggingface.co/brayanspv/bird_classification/resolve/main/bird_species_classifier_latest.pkl
+```
+(Checksums to verify the downloads are in [`DOCKER.md`](DOCKER.md#1-model-files-not-in-any-repo-not-in-the-docker-images).)
+
+**3. Create your `.env` file.** This repo does **not** ship a `.env` — Docker Compose reads one from
+this directory to fill in secrets, and without it the AWS-dependent services refuse to start:
+```bash
+cp .env.example .env
+```
+Then edit `.env` and fill in `AWS_S3_BUCKET_NAME`, `AWS_S3_ACCESS_KEY`, `AWS_S3_SECRET_KEY` with real
+values — Postgres/RabbitMQ already have working local defaults in `.env.example`, change them only if
+you need to. `.env` is gitignored; never commit it.
+
+**4. Build and start everything:**
+```bash
+docker compose up --build
+```
+First boot is slow — the Python images pull `torch`/`fastai`, and Postgres runs its seed scripts once.
+
+**5. Verify it's up:**
+```bash
+docker compose ps                             # all five should be "healthy" or "running"
+curl -f http://localhost:8081/actuator/health # orchestrator: {"status":"UP"}
+```
+Orchestrator is on `:8081`, detection on `:8000`, RabbitMQ management UI on `:15672`, Postgres on
+`:5432`. `docker compose logs -f <service>` is the fastest way to debug a container that isn't healthy.
+
+Full details (checksums, full port table, end-to-end curl test, known limitations) are in
+[`DOCKER.md`](DOCKER.md).
 
 ### Build & Test
 ```bash
