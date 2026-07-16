@@ -49,6 +49,15 @@ cache:
   presigned-url:
     spec: ${CACHE_PRESIGNED_URL_SPEC:maximumSize=1000,expireAfterWrite=25m}
 
+# OpenAPI/Swagger UI (see infrastructure/configuration/OpenApiConfig) - defaults shown explicitly
+# since SecurityHeadersWebFilter special-cases these path prefixes to relax its CSP header.
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operationsSorter: method
+
 rabbitmq:
   exchange: bird_detection.exchange
   queue: bird_detection.pending.queue

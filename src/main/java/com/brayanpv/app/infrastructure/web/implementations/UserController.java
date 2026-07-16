@@ -6,6 +6,10 @@ import com.brayanpv.app.domain.usecase.contracts.IGetImageEventUseCase;
 import com.brayanpv.app.domain.model.ImageEvent;
 import com.brayanpv.app.domain.storage.IImageStoragePort;
 import com.brayanpv.app.infrastructure.web.contracts.IUserController;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.http.HttpStatus;
@@ -26,6 +30,7 @@ import java.util.UUID;
 @RequestMapping("/users")
 @RequiredArgsConstructor
 @Log4j2
+@Tag(name = "User", description = "Per-user bird sighting history")
 public class UserController implements IUserController {
 
     private final IGetImageEventUseCase getImageEventUseCase;
@@ -33,7 +38,13 @@ public class UserController implements IUserController {
 
     @Override
     @GetMapping("/{userId}/birds")
-    public Mono<ResponseEntity<GenericResponse<List<BirdSightingResponse>>>> getImageEvents(@PathVariable UUID userId) {
+    @Operation(
+            summary = "List a user's bird sightings",
+            description = "Returns every ImageEvent for the user, each with a presigned S3 thumbnail URL."
+    )
+    @ApiResponse(responseCode = "200", description = "The user's sightings (possibly empty)")
+    public Mono<ResponseEntity<GenericResponse<List<BirdSightingResponse>>>> getImageEvents(
+            @Parameter(description = "User id", required = true) @PathVariable UUID userId) {
         log.info("getImageEvents called for user {}", userId);
 
         return getImageEventUseCase.getImageEvents(userId)

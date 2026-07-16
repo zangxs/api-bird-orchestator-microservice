@@ -97,6 +97,13 @@
       <artifactId>caffeine</artifactId>
     </dependency>
 
+    <!-- OpenAPI 3 spec generation (/v3/api-docs) + Swagger UI (/swagger-ui.html), WebFlux flavor -->
+    <dependency>
+      <groupId>org.springdoc</groupId>
+      <artifactId>springdoc-openapi-starter-webflux-ui</artifactId>
+      <version>2.6.0</version>
+    </dependency>
+
     <!-- Test -->
     <dependency>
       <groupId>org.springframework.boot</groupId>

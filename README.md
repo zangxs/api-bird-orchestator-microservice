@@ -219,6 +219,13 @@ GET /actuator/health
 GET /actuator/info
 ```
 
+### API Documentation (OpenAPI / Swagger UI)
+```http
+GET /v3/api-docs       # raw OpenAPI 3 spec (JSON)
+GET /swagger-ui.html   # interactive Swagger UI
+```
+Generated from annotations on `BirdController`/`UserController` and the DTOs (`springdoc-openapi-starter-webflux-ui`); top-level info comes from `infrastructure/configuration/OpenApiConfig`.
+
 ## Project Structure
 
 ```
@@ -291,7 +298,8 @@ src/main/java/com/brayanpv/app/
 │   │   ├── RabbitMQConfig.java
 │   │   ├── RabbitTopologyInitializer.java
 │   │   ├── S3ConnectionConfiguration.java
-│   │   └── CacheConfig.java
+│   │   ├── CacheConfig.java
+│   │   └── OpenApiConfig.java                         # springdoc OpenAPI Info bean (/v3/api-docs, /swagger-ui.html)
 │   ├── handle/GlobalExceptionHandler.java             # ConstraintViolationException → 400, generic RuntimeException → 400
 │   └── mapper/ImageEventMapper.java
 └── test/                                              # mirrors main; unit tests per use case, consumer, adapter, filter (Mockito + Reactor Test)
@@ -306,6 +314,7 @@ src/main/java/com/brayanpv/app/
 - `aws.s3` — bucket, credentials via env vars
 - `cleanup.rejected-images.fixed-delay-ms` — interval for `RejectedImageCleanupScheduler`
 - `cache.species.spec` / `cache.presigned-url.spec` — size/TTL for the species and presigned-S3-URL caches, wired up by `CacheConfig`
+- `springdoc.api-docs.path` / `springdoc.swagger-ui.path` — OpenAPI JSON / Swagger UI paths (defaults `/v3/api-docs`, `/swagger-ui.html`)
 - `rabbitmq.*` — exchange, queues, routing keys, all bound in `RabbitMQConfig.java` against exchange `bird_detection.exchange`:
 
 | Key | Value |
@@ -324,7 +333,6 @@ src/main/java/com/brayanpv/app/
 - [ ] `IImageEventResultBroker` is in-memory only (`ConcurrentHashMap` + `Sinks.One`) — won't coordinate correctly if the orchestrator is horizontally scaled
 - [ ] No consumer for `bird_classification.manual.queue` in this repo (presumably a manual-review tool elsewhere)
 - [ ] No integration tests with Testcontainers (PostgreSQL, RabbitMQ, MinIO) — none yet, `pom.xml` has no Testcontainers dependency
-- [ ] No OpenAPI/Swagger configuration
 - [ ] No `docker-compose.yml` for local dependencies
 
 ## Tech Stack
@@ -339,3 +347,4 @@ src/main/java/com/brayanpv/app/
 - **Coverage / Security**: JaCoCo (80% instruction-coverage floor on business logic), OWASP Dependency-Check (fails on CVSS ≥ 7 CVEs)
 - **CI**: GitHub Actions (`.github/workflows/ci.yml`) — `mvn verify` on every pull request
 - **Observability**: Spring Boot Actuator
+- **API docs**: springdoc-openapi (OpenAPI 3 + Swagger UI, WebFlux)
