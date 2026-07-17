@@ -94,7 +94,16 @@ docker compose up --build
 
 First boot takes longer — Postgres runs its init scripts once (data persists in the `pgdata`
 volume after that; delete the volume to reseed from scratch), and the Python services' images
-include `torch`/`fastai`, which are large downloads on the first `--build`.
+include `torch`/`fastai`, which are large downloads on the first `--build`. Expect `detection` and
+`classification` images around **~9GB each** on disk — `pip install torch` pulls the default CUDA
+build (bundled `nvidia-*` wheels: cuBLAS, cuDNN, etc.), even though both services only run inference
+on CPU; the CUDA libs are dead weight here, not something the code uses. Both services install these
+heavy deps from an identical `requirements-ml.txt` (`api-bird-detection-microservice` and
+`api-bird-classification-microservice`, versions pinned to match the training venv:
+`fastai==2.8.7`, `torch==2.13.0`, `torchvision==0.28.0`) in its own Docker layer *before* each
+service's own `requirements.txt` — since the file and the `RUN pip install` step are byte-identical
+in both repos, Docker/BuildKit caches and stores that ~8.9GB layer **once** and both images share it
+on disk, rather than paying for it twice.
 
 ## 4. Verify it's actually working
 
